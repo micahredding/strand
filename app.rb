@@ -4,7 +4,7 @@ require 'json'
 
 class Node
 	attr_accessor :title, :body, :id
-	Filename = "public/temp.json"
+	Filename = "/var/www/sinatra/public/temp.json"
 	@@nodes = {}
 
 	def initialize (node_hash)
@@ -115,6 +115,6 @@ end
 
 get '/node' do
 	@node_list = Node.index
-	@title = 'All Nodes'
+	@title = 'Hello and Welcome'
 	erb :index
 end
