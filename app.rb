@@ -45,20 +45,22 @@ end
 
 class SchemaBlob
 	attr_accessor :blobref, :blobcontent, :blobhash
-	@@type = 'schemablob'
 	def initialize blobref, blobcontent
 		@blobref = blobref
 		@blobcontent = blobcontent
 		@blobhash = JSON.parse(@blobcontent) || {}
-		binding.pry
 	end
 	def save
 		Blobserver.put(@blobcontent)
+	end
+	def self.type
+		name.downcase
 	end
 	def self.create blobcontent
 		blobref = Blobserver.blobref(blobcontent)
 		schemablob = self.new(blobref, blobcontent)
 		schemablob.save
+		schemablob
 	end
 	def self.get blobref
 		blobcontent = Blobserver.get(blobref)
@@ -72,7 +74,7 @@ class SchemaBlob
 		schemablobs = []
 		blobs.each do |blobref, blobcontent|
 			blobhash = JSON.parse(blobcontent)
-			if blobhash['type'] == @@type
+			if blobhash['type'] == self.type
 				schemablobs << self.new(blobref, blobcontent)
 			end
 		end
@@ -80,66 +82,64 @@ class SchemaBlob
 	end
 	def self.find_by field, value
 		blobs = Blobserver.enumerate
-		claims = []
+		schemablobs = []
 		blobs.each do |blobref, blobcontent|
 			blobhash = JSON.parse(blobcontent)
-			if blobhash['type'] == @@type && blobhash[field] == value
-				claims << Claim.new(blobref, blobcontent)
+			if blobhash['type'] == self.type && blobhash[field] == value
+				schemablobs << self.new(blobref, blobcontent)
 			end
 		end
-		claims
+		schemablobs
 	end
 end
 
 class Permanode < SchemaBlob
-	@@type = 'permanode'
-	def claims
-		Claim.find_by_permanode(@blobref)
-	end
-	def current_claim
-		claims.last
-	end
-	def current_content
-		current_claim.content
-	end
 	def Permanode.create
 		blobcontent = {
 			'type' => 'permanode',
 			'random' => rand(0..1000)
 		}.to_json
-		SchemaBlob.create blobcontent
+		super blobcontent
+	end
+	def claims
+		Claim.find_by_permanode(@blobref)
+	end
+	def current_claim
+		claims.last || nil
+	end
+	def current_content
+		return nil if current_claim.nil?
+		current_claim.content
 	end
 end
 
 class Claim < SchemaBlob
-	@@type = 'claim'
-	def content
-		Content.get(@blobhash['content'])
-	end
 	def Claim.create permanode, content
 		blobcontent = {
 			'type' => 'claim',
 			'permanode' => permanode.blobref || permanode,
 			'content' => content.blobref || content,
 		}.to_json
-		SchemaBlob.create blobcontent
+		super blobcontent
 	end
 	def Claim.find_by_permanode permanode_ref
 		self.find_by('permanode', permanode_ref)
 	end
+	def content
+		Content.get(@blobhash['content'])
+	end
 end
 
 class Content < SchemaBlob
-	@@type = 'content'
+	def Content.create content_hash
+		blobcontent = content_hash.to_json
+		super blobcontent
+	end
 	def title
 		@blobhash['title']
 	end
 	def body
 		@blobhash['body']
-	end
-	def Content.create content_hash
-		blobcontent = content_hash.to_json
-		SchemaBlob.create blobcontent
 	end
 end
 
@@ -271,9 +271,9 @@ end
 get '/permanode/:blobref' do
 	@title = 'Permanode'
 	@permanode = Permanode.get(params[:blobref])
-	@claims = Claim.enumerate
+	@claims = @permanode.claims
 	@claim = @claims.last
-	@content = @claim
+	@content = @permanode.current_content
 	# @content = @permanode.claims
 	# @content = @permanode.current_content
 	erb :permanode
