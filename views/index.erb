@@ -1,6 +1,22 @@
 <br />
 This is intended to be an open-source CMS, used for simple and elegant projects. It is built in Ruby on Sinatra, and features basic blog and content management functionality. I’ve started putting together the basic proof-of-concept CRUD here.
 <br /><br />
-<% @node_list.each do |key, node| %>
-<a href="/node/<%= key %>"><%= node.title %></a><br />
-<% end %>
+<pre><%= @dpm %></pre>
+<%
+	if @blobs
+		@blobs.each do |blobref, blob|
+			%>
+			<%= blobref %>
+			<%= blob.blobcontent %>
+			<%
+		end
+	end
+
+	if @node
+		@node_list.each do |key, node|
+%>
+		<a href="/node/<%= key %>"><%= node.title %></a><br />
+<%
+		end
+	end
+%>
