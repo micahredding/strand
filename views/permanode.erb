@@ -1,0 +1,15 @@
+<br />
+This is intended to be an open-source CMS, used for simple and elegant projects. It is built in Ruby on Sinatra, and features basic blog and content management functionality. I’ve started putting together the basic proof-of-concept CRUD here.
+<br /><br />
+<pre><%= @dpm || '' %></pre>
+<%= @permanode.blobref %><br />
+<%= @permanode.blobcontent %><br />
+<br />
+<h2>Claims on this Permanode</h2>
+<% @claims.each do |claim| %>
+<%= claim.blobref %><br />
+<%= claim.blobcontent %><br /><br />
+<% end %><br />
+<a href="/claim/create/<%= @permanode.blobref %>">Create New Claim</a><br />
+<h2>Content of this Permanode</h2>
+<%= @content.blobhash['title'] %><br />
