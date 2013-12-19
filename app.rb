@@ -3,34 +3,28 @@ require 'sinatra/form_helpers'
 require 'json'
 require 'digest/sha1'
 
-class Blob
-	attr_accessor :blobref, :blobcontent
+class Blobserver
 	Filename = "public/blobs.json"
 
-	def initialize blobcontent
-		@blobcontent = blobcontent
-		@blobref = Digest::SHA1.hexdigest(blobcontent)
+	def self.blobref blobcontent
+		Digest::SHA1.hexdigest(blobcontent)
 	end
 
 	def self.put blobcontent
-		blob = self.new blobcontent
 	  blobs = self.read_all_items
-	  blobs[blob.blobref] = blobcontent
+	  blobref = self.blobref(blobcontent)
+	  blobs[blobref] = blobcontent
 	  self.write_all_items blobs
-	  blob
+	  blobref
 	end
 
 	def self.get blobref
 	  blobs = self.read_all_items
-	  self.new blobs[blobref]
+	  blobs[blobref]
 	end
 
 	def self.enumerate
-		blobs = {}
-	  self.read_all_items.each do |blobref, blobcontent|
-	  	blobs[blobref] = self.new blobcontent
-	  end
-	  blobs
+		self.read_all_items
 	end
 
 	def self.write_all_items blobs
@@ -48,68 +42,7 @@ class Blob
 	end
 end
 
-class SchemaBlob < Blob
-	attr_accessor :blobjson
-	def initialize blobcontent
-		super blobcontent
-		@blobjson = JSON.parse @blobcontent
-	end
-end
-
-class Permanode < SchemaBlob
-	def initialize
-		blobcontent = {
-			'blobtype' => 'permanode',
-			'random' => rand(0..1000)
-		}
-		super blobcontent.to_json
-	end
-
-	# def claims
-	# 	Claim.find_by_permanode_ref @blobref
-	# end
-
-	# def get_content
-	# 	claims.values.last.get_content
-	# end
-
-	# def put_content content
-	# 	content_blob = Blob.new content
-	# 	content_blob.save
-	# 	claim_blob = Claim.new @blobref, content_blob.blobref
-	# 	claim_blob.save
-	# end
-end
-
-# class Claim < SchemaBlob
-# 	attr_accessor :permanode_ref, :content_ref
-# 	def hash_content
-# 		{'type' => @type, 'permanode_ref' => @permanode_ref, 'content_ref' => @content_ref}
-# 	end
-
-# 	def initialize permanode_ref, content_ref
-# 		@type = 'claim'
-# 		@permanode_ref = permanode_ref
-# 		@content_ref = content_ref
-# 		super hash_content
-# 	end
-
-# 	def get_content
-# 		blob = Blob.get @content_ref
-# 		blob.content
-# 	end
-
-# 	def self.find_by_permanode_ref p
-# 		blobs = self.enumerate
-# 		blobs.select { |blobref, blob|
-# 			blob.permanode_ref == p
-# 		}
-# 	end
-# end
-
-
-
-# class Node
+class Node
 # 	attr_accessor :title, :body, :id
 # 	@@nodes = {}
 
@@ -183,7 +116,7 @@ end
 
 # 	# Node.read_all_items
 
-# end
+end
 
 
 # get '/' do
