@@ -136,10 +136,10 @@ class Content < SchemaBlob
 		super blobcontent
 	end
 	def title
-		@blobhash['title']
+		@blobhash['title'] || ''
 	end
 	def body
-		@blobhash['body']
+		@blobhash['body'] || ''
 	end
 end
 
@@ -256,8 +256,13 @@ end
 
 get '/claim/create/:permanode_blobref' do
 	@title = 'Add New Claim to a Permanode'
+	erb :form
+end
+
+post '/claim/create/:permanode_blobref' do
+	@title = 'Add New Claim to a Permanode'
 	@permanode = Permanode.get(params[:permanode_blobref])
-	@content = Content.create({'title' => 'Sample Title', 'body' => 'Sample Body'})
+	@content = Content.create(params['content'])
 	Claim.create(@permanode, @content)
 	redirect "/permanode/#{@permanode.blobref}"
 end
@@ -272,10 +277,7 @@ get '/permanode/:blobref' do
 	@title = 'Permanode'
 	@permanode = Permanode.get(params[:blobref])
 	@claims = @permanode.claims
-	@claim = @claims.last
 	@content = @permanode.current_content
-	# @content = @permanode.claims
-	# @content = @permanode.current_content
 	erb :permanode
 end
 

@@ -1,13 +1,13 @@
 <%= form(request.fullpath, :post) %>
 <%
-  if @node
-	  title = @node.title || ''
-	  body = @node.body || ''
+  if @content
+	  title = @content.title || ''
+	  body = @content.body || ''
 	else
 		title = ''
 		body = ''
 	end
 %>
-<%= input(:node, :title, :value => title) %>
-<%= textarea(:node, :body, body, :rows => 20) %>
+<%= input(:content, :title, :value => title) %>
+<%= textarea(:content, :body, body, :rows => 20) %>
 <%= submit %>
