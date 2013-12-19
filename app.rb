@@ -48,77 +48,38 @@ class Blob
 	end
 end
 
-# class Blob
-# 	attr_accessor :blobref, :blobcontent
-
-# 	def initialize blobcontent
-# 		@blobcontent = blobcontent
-# 		@blobref = Digest::SHA1.hexdigest(blobcontent)
-# 	end
-
-# 	def self.put blobcontent
-# 		blobref = Blobserver.put blobcontent
-# 		self.new blobcontent
-# 	end
-
-# 	def self.get blobref
-# 		blobcontent = Blobserver.get blobref
-# 		self.new blobcontent
-# 	end
-
-# 	def self.enumerate
-# 		blobs = {}
-# 	  Blobserver.read_all_items.each do |blobref, blobcontent|
-# 	  	blobs[blobref] = self.new blobcontent
-# 	  end
-# 	  blobs
-# 	end
-# end
-
 class SchemaBlob < Blob
 	attr_accessor :blobjson
-
 	def initialize blobcontent
 		super blobcontent
 		@blobjson = JSON.parse @blobcontent
 	end
-
-	def self.enumerate
-		blobs = super
-		blobs.select { |blobref, blobcontent|
-			blobcontent.blobtype == type
-		}
-	end
 end
 
-# class Permanode < SchemaBlob
-# 	def default_type
-# 		'permanode'
-# 	end
+class Permanode < SchemaBlob
+	def initialize
+		blobcontent = {
+			'blobtype' => 'permanode',
+			'random' => rand(0..1000)
+		}
+		super blobcontent.to_json
+	end
 
-# 	def hash_content
-# 		{'type' => type}
-# 	end
+	# def claims
+	# 	Claim.find_by_permanode_ref @blobref
+	# end
 
-# 	def initialize data
-# 		data['content'] = hash_content
-# 	end
+	# def get_content
+	# 	claims.values.last.get_content
+	# end
 
-# 	def claims
-# 		Claim.find_by_permanode_ref @blobref
-# 	end
-
-# 	def get_content
-# 		claims.values.last.get_content
-# 	end
-
-# 	def put_content content
-# 		content_blob = Blob.new content
-# 		content_blob.save
-# 		claim_blob = Claim.new @blobref, content_blob.blobref
-# 		claim_blob.save
-# 	end
-# end
+	# def put_content content
+	# 	content_blob = Blob.new content
+	# 	content_blob.save
+	# 	claim_blob = Claim.new @blobref, content_blob.blobref
+	# 	claim_blob.save
+	# end
+end
 
 # class Claim < SchemaBlob
 # 	attr_accessor :permanode_ref, :content_ref
@@ -269,7 +230,7 @@ end
 
 get '/node' do
 	@title = 'hi'
-	@blobs = Blob.enumerate
+	@blobs = SchemaBlob.enumerate
 	# @node_list = Node.index
 	# @title = 'Hello and Welcome'
 	erb :index
