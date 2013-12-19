@@ -42,28 +42,58 @@ class Blobserver
 	end
 end
 
+class Permanode
+	attr_accessor :blobref
+	def initialize
+		content = {
+			'type' => 'permanode',
+			'random' => rand(0..1000)
+		}.to_json
+		@blobref = Blobserver.blobref(content)
+	end
+end
+
 class Node
-# 	attr_accessor :title, :body, :id
-# 	@@nodes = {}
+	attr_accessor :title, :body, :id
 
-# 	def hash_content
-# 		{'title' => @title, 'body' => @body}
-# 	end
+	def hash_content
+		{'title' => @title, 'body' => @body}
+	end
 
-# 	def initialize (node_hash)
-# 		@title = node_hash[:title] || node_hash['title'] || 'title'
-# 		@body = node_hash[:body] || node_hash['body'] || 'body'
+	def json_content
+		hash_content.to_json
+	end
 
-# 		if(node_hash[:id] || node_hash['id'])
-# 			@id = node_hash[:id] || node_hash['id']
-# 			@permanode = Permanode.get @id
-# 		else
-# 			@permanode = Permanode.new
-# 			@id = @permanode.blobref
-# 		end
+	def initialize(node_hash)
+		@title = node_hash[:title] || node_hash['title'] || 'title'
+		@body = node_hash[:body] || node_hash['body'] || 'body'
+		@id = node_hash[:id] || node_hash['id'] || Blobserver.blobref (json_content)
+	end
 
-# 		@permanode.put_content hash_content
-# 	end
+	def save
+		Blobserver.put json_content
+	end
+
+	def Node.get(blobref)
+		blobcontent = Blobserver.get blobref
+		blobhash = JSON.parse(blobcontent)
+		blobhash['id'] = blobref
+		Node.new blobhash
+	end
+
+	def Node.create(node_hash)
+		# create a Node
+		node = Node.new(node_hash)
+		node.save
+		node
+		# # create a permanode
+		# permanode = Permanode.new
+
+		# # create a blob for the content
+		# content = Blobserver.put()
+		# claim = Claim.new
+
+	end
 
 # 	def update(node_hash)
 # 		@title = node_hash[:title] || node_hash['title'] || @title
@@ -86,33 +116,15 @@ class Node
 # 		# permanode
 # 	# end
 
-# 	def Node.get(ref)
-# 		Permanode.get(ref)
-# 	end
 
-# 	def Node.index
-# 		Permanode.enumerate
-# 	end
-
-# 	# def Node.read_all_items
-# 		# @@nodes = Permanode.enumerate
-# 	  # n = Storage.read_all_items
-# 	  # n.each do |key, node_hash|
-#    #  	node = Node.new(node_hash)
-#    #  	@@nodes[key] = node
-#    #  end
-# 	# end
-
-# 	# def Node.write_all_items
-# 	# 	@@nodes.each do |key, node|
-# 	# 		data = {
-# 	# 			'id' => key,
-# 	# 			'title' => node.title,
-# 	# 			'body' => node.body
-# 	# 		}
-# 	# 		Storage.write_item key, data
-# 	# 	end
-# 	# end
+	def Node.index
+		nodes = {}
+		Blobserver.enumerate.each do |blobref, blobcontent|
+			blobhash = JSON.parse(blobcontent)
+			nodes[blobref] = Node.new blobhash
+		end
+		nodes
+	end
 
 # 	# Node.read_all_items
 
@@ -163,8 +175,8 @@ end
 
 get '/node' do
 	@title = 'hi'
-	@blobs = SchemaBlob.enumerate
-	# @node_list = Node.index
+	# @blobs = SchemaBlob.enumerate
+	@node_list = Node.index
 	# @title = 'Hello and Welcome'
 	erb :index
 end
