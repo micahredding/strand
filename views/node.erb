@@ -3,10 +3,10 @@
 	<%= @content['body'] %>
 <% end %>
 <br /><br />
-<% if @claims && @claims.count > 0 %>
+<% if @revisions %>
 	<h2>Revisions</h2>
-	<% @claims.each do |claim| %>
-	<%= claim.blobref %><br />
-	<%= claim.blobcontent %><br /><br />
+	<% @revisions.each do |revision| %>
+	<%= revision['title'] %><br />
+	<%= revision['body'] %><br /><br />
 	<% end %>
 <% end %>

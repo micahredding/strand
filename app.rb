@@ -65,7 +65,8 @@ class SchemaBlob
 	end
 	def self.get blobref
 		blobcontent = Blobserver.get(blobref)
-		self.new(blobref, blobcontent) || nil
+		if blobcontent.nil? then return nil end
+		self.new(blobref, blobcontent)
 	end
 	def self.put blobcontent
 		Blobserver.put(blobcontent)
@@ -142,25 +143,46 @@ class MutableObject
 	attr_accessor :permanode
 	def initialize(permanode) @permanode = permanode end
 	def blobref() @permanode.blobref end
-	def content() revisions.last end
+	def content() revisions.last || {} end
+	def current()	revisions.last || {} end
 
-	def update(content_hash)
-		content = Content.create(content_hash)
-		claim = Claim.create(@permanode, content)
+	def revision blobref
+		claims = Claim.find_by_permanode(@permanode.blobref)
+		claims.each do |claim|
+			if claim.blobref == blobref || claim.content.blobref == blobref
+				return claim.content.blobhash
+			end
+		end
+		nil
 	end
 
 	def revisions
 		claims = Claim.find_by_permanode(@permanode.blobref)
 		revisions = []
 		claims.each do |claim|
-			revisions << claim.content.blobhash
+			revisions << claim.content.blobhash || 'sss'
+			# revisions << Content.get(claim.blobhash['content']).blobhash
 		end
 		revisions
 	end
 
+	def update(content_hash)
+		content = Content.create(content_hash)
+		claim = Claim.create(@permanode, content)
+	end
+
 	def self.create
 		@permanode = Permanode.create
-		self.new(permanode)
+		self.new(@permanode)
+	end
+
+	def self.get blobref
+		permanode = Permanode.get(blobref)
+		if permanode.blobref
+			self.new(permanode)
+		else
+			nil
+		end
 	end
 
 	def self.enumerate
@@ -171,10 +193,6 @@ class MutableObject
 		objects
 	end
 
-	def self.get blobref
-		permanode = Permanode.get(blobref)
-		self.new(permanode)
-	end
 end
 
 class Node < MutableObject
@@ -194,29 +212,42 @@ end
 
 get '/node/:permanode_ref' do
 	@node = Node.get(params[:permanode_ref])
-	if @node
-		@title = @node.title || @node.blobref
-		@permanode = @node.permanode
-		@content = @node.content
-		erb :node
-	else
+	if @node.nil?
 		redirect '/error'
 	end
+	@revisions = @node.revisions
+	@content = @node.content
+	@title = @content['title'] || @node.blobref
+	erb :node
 end
 
 get '/node/:permanode_ref/edit' do
-	@title = 'Edit Node'
 	@node = Node.get(params[:permanode_ref])
-	@permanode = @node.permanode
+	if @node.nil?
+		redirect '/error'
+	end
+	@title = 'Edit Node'
 	@content = @node.content
 	erb :form
 end
 
 post '/node/:permanode_ref/edit' do
-	@title = 'Edit Node'
 	@node = Node.get(params[:permanode_ref])
+	if @node.nil?
+		redirect '/error'
+	end
 	@node.update(params['content'])
 	redirect "/node/#{params[:permanode_ref]}"
+end
+
+get '/node/:permanode_ref/:revision_ref' do
+	@node = Node.get(params[:permanode_ref])
+	if @node.nil?
+		redirect '/error'
+	end
+	@content = @node.revision(params[:revision_ref])
+	@title = @content['title'] || @node.blobref
+	erb :node
 end
 
 get '/node' do
@@ -226,6 +257,7 @@ get '/node' do
 end
 
 get '/error' do
+	@title = 'Error'
 	erb :error
 end
 
