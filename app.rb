@@ -4,6 +4,7 @@ require 'json'
 require 'digest/sha1'
 require 'pry'
 
+# @begin Data Structures
 class Blobserver
 	Filename = "public/blobs.json"
 
@@ -135,49 +136,54 @@ class Content < SchemaBlob
 		blobcontent = content_hash.to_json
 		super blobcontent
 	end
-	def title
-		@blobhash['title'] || ''
+end
+# @end Data Structures
+
+class MutableObject
+	attr_accessor :permanode
+
+	def initialize permanode
+		@permanode = permanode
 	end
-	def body
-		@blobhash['body'] || ''
+
+	def blobref
+		@permanode.blobref
+	end
+
+	def update(content_hash)
+		content = Content.create(content_hash)
+		claim = Claim.create(@permanode, content)
+	end
+
+	def content
+		claims = Claim.find_by_permanode(@permanode.blobref)
+		if claims.count > 0
+			claim = claims.last
+			content = claim.content
+		end
+		content || nil
+	end
+
+	def MutableObject.create
+		@permanode = Permanode.create
+	end
+
+	def MutableObject.enumerate
+		objects = []
+		Permanode.enumerate.each do |permanode|
+			objects << MutableObject.new(permanode)
+		end
+		objects
+	end
+
+	def MutableObject.get blobref
+		permanode = Permanode.get(blobref)
+		MutableObject.new(permanode)
 	end
 end
 
-# class MutableObject
-# 	attr_accessor :permanode
-# 	def initialize permanode
-# 		@permanode = permanode || Permanode.create
-# 	end
-
-# 	def update(content_hash)
-# 		content = Content.create(content_hash)
-# 		claim = Claim.create(@permanode, content)
-# 	end
-
-# 	def claims
-# 		Claim.find_by_permanode(@permanode)
-# 	end
-
-# 	def current_claim
-# 		claims.values.last
-# 	end
-
-# 	def current_content
-# 		JSON.parse(current_claim)
-# 	end
-
-# 	def MutableObject.enumerate
-# 		Permanode.enumerate
-# 	end
-
-# 	def MutableObject.get blobref
-# 		permanode = Blobserver.get(blobref)
-# 		MutableObject.new(permanode)
-# 	end
-# end
-
-# class Node
-# 	attr_accessor :title, :body, :id, :permanode
+class Node < MutableObject
+	attr_accessor :title, :body
 
 # 	def json_content
 # 		{'title' => @title, 'body' => @body}.to_json
@@ -252,7 +258,36 @@ end
 
 # 	# Node.read_all_items
 
-# end
+end
+
+get '/object/create' do
+	@title = 'MutableObject'
+	@mutableobject = MutableObject.create
+	redirect "/object/#{@mutableobject.blobref}"
+end
+
+get '/object/:permanode_ref' do
+	@title = 'MutableObject'
+	@mutableobject = MutableObject.get(params[:permanode_ref])
+	@permanode = @mutableobject.permanode
+	@content = @mutableobject.content.blobhash
+	erb :mutableobject
+end
+
+get '/object/:permanode_ref/edit' do
+	@title = 'Edit MutableObject'
+	@mutableobject = MutableObject.get(params[:permanode_ref])
+	@permanode = @mutableobject.permanode
+	@content = @mutableobject.content.blobhash
+	erb :form
+end
+
+post '/object/:permanode_ref/edit' do
+	@title = 'Edit MutableObject'
+	@mutableobject = MutableObject.get(params[:permanode_ref])
+	@mutableobject.update(params['content'])
+	redirect "/object/#{params[:permanode_ref]}"
+end
 
 get '/claim/create/:permanode_blobref' do
 	@title = 'Add New Claim to a Permanode'

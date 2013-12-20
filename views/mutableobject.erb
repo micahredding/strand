@@ -1,14 +1,10 @@
 <pre><%= @dpm || '' %></pre>
-<%= @permanode.blobref %><br />
-<%= @permanode.blobcontent %><br />
-<br />
 <% if @content %>
-	<h2>Content of this Permanode</h2>
 	<%= @content['title'] %><br />
 	<%= @content['body'] %>
 <% end %>
 <br /><br />
-<% if @claims.count > 0 %>
+<% if @claims && @claims.count > 0 %>
 	<h2>Revisions</h2>
 	<% @claims.each do |claim| %>
 	<%= claim.blobref %><br />

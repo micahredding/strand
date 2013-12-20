@@ -1,8 +1,8 @@
 <%= form(request.fullpath, :post) %>
 <%
   if @content
-	  title = @content.title || ''
-	  body = @content.body || ''
+	  title = @content['title'] || ''
+	  body = @content['body'] || ''
 	else
 		title = ''
 		body = ''
