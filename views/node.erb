@@ -1,1 +1,12 @@
-<%= @node.body %>
+<pre><%= @dpm || '' %></pre>
+<% if @content %>
+	<%= @content['body'] %>
+<% end %>
+<br /><br />
+<% if @claims && @claims.count > 0 %>
+	<h2>Revisions</h2>
+	<% @claims.each do |claim| %>
+	<%= claim.blobref %><br />
+	<%= claim.blobcontent %><br /><br />
+	<% end %>
+<% end %>

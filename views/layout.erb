@@ -14,15 +14,15 @@
       <a href="/node" class="trigger">&#9728;</a>
       <a href="/node/create">New</a>
       <% if @node %>
-        <a href="/node/<%= @node.id %>/edit">Edit</a>
-        <a href="/node/<%= @node.id %>/delete">Delete</a>
+        <a href="/node/<%= @node.blobref %>/edit">Edit</a>
+        <a href="/node/<%= @node.blobref %>/delete">Delete</a>
       <% end %>
     </div>
     <div id="main">
     <h1><%= @title or @node.title %></h1>
     <article><%= yield %></article>
     </div>
-
+    <br /><br />
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script>window.jQuery || document.write('<script src="assets/js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
   </body>

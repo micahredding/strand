@@ -4,7 +4,6 @@ require 'json'
 require 'digest/sha1'
 require 'pry'
 
-# @begin Data Structures
 class Blobserver
 	Filename = "public/blobs.json"
 
@@ -137,53 +136,53 @@ class Content < SchemaBlob
 		super blobcontent
 	end
 end
-# @end Data Structures
 
 class MutableObject
 	attr_accessor :permanode
-
-	def initialize permanode
-		@permanode = permanode
-	end
-
-	def blobref
-		@permanode.blobref
-	end
+	def initialize(permanode) @permanode = permanode end
+	def blobref() @permanode.blobref end
+	def content() revisions.last end
 
 	def update(content_hash)
 		content = Content.create(content_hash)
 		claim = Claim.create(@permanode, content)
 	end
 
-	def content
+	def revisions
 		claims = Claim.find_by_permanode(@permanode.blobref)
-		if claims.count > 0
-			claim = claims.last
-			content = claim.content
+		revisions = []
+		claims.each do |claim|
+			revisions << claim.content.blobhash
 		end
-		content || nil
+		revisions
 	end
 
-	def MutableObject.create
+	def self.create
 		@permanode = Permanode.create
+		self.new(permanode)
 	end
 
-	def MutableObject.enumerate
+	def self.enumerate
 		objects = []
 		Permanode.enumerate.each do |permanode|
-			objects << MutableObject.new(permanode)
+			objects << self.new(permanode)
 		end
 		objects
 	end
 
-	def MutableObject.get blobref
+	def self.get blobref
 		permanode = Permanode.get(blobref)
-		MutableObject.new(permanode)
+		self.new(permanode)
 	end
 end
 
 class Node < MutableObject
-	attr_accessor :title, :body
+	def title
+		content['title'] if not content.nil?
+	end
+	def body
+		content['body'] if not content.nil?
+	end
 end
 
 get '/node/create' do
@@ -193,18 +192,18 @@ get '/node/create' do
 end
 
 get '/node/:permanode_ref' do
-	@title = 'Node'
 	@node = Node.get(params[:permanode_ref])
+	@title = @node.title || @node.blobref
 	@permanode = @node.permanode
-	@content = @node.content.blobhash
-	erb :mutableobject
+	@content = @node.content
+	erb :node
 end
 
 get '/node/:permanode_ref/edit' do
 	@title = 'Edit Node'
 	@node = Node.get(params[:permanode_ref])
 	@permanode = @node.permanode
-	@content = @node.content.blobhash
+	@content = @node.content
 	erb :form
 end
 
@@ -215,89 +214,12 @@ post '/node/:permanode_ref/edit' do
 	redirect "/node/#{params[:permanode_ref]}"
 end
 
-get '/claim/create/:permanode_blobref' do
-	@title = 'Add New Claim to a Permanode'
-	erb :form
+get '/node' do
+	@title = 'All Nodes'
+	@nodes = Node.enumerate
+	erb :index
 end
 
-post '/claim/create/:permanode_blobref' do
-	@title = 'Add New Claim to a Permanode'
-	@permanode = Permanode.get(params[:permanode_blobref])
-	@content = Content.create(params['content'])
-	Claim.create(@permanode, @content)
-	redirect "/permanode/#{@permanode.blobref}"
+get '/' do
+	redirect '/node'
 end
-
-get '/permanode/create' do
-	@title = 'Add New Permanode'
-	@permanode = Permanode.create
-	redirect "/permanode/#{@permanode.blobref}"
-end
-
-get '/permanode/:blobref' do
-	@title = 'Permanode'
-	@permanode = Permanode.get(params[:blobref])
-	@claims = @permanode.claims
-	@content = @permanode.current_content
-	erb :permanode
-end
-
-get '/permanode' do
-	@title = 'Permanodes'
-	@permanode_list = Permanode.enumerate
-	erb :permanode_index
-end
-
-get '/permanode/' do
-	redirect '/permanode'
-end
-
-# get '/' do
-# 	redirect '/node'
-# end
-
-# get '/node/create' do
-# 	@title = 'Add New Node'
-# 	erb :form
-# end
-
-# post '/node/create' do
-# 	Node.new(params["node"]).save
-# 	redirect '/node'
-# end
-
-# get '/node/:id/edit' do
-# 	@title = 'Edit Node'
-# 	@node = Node.get(params[:id])
-# 	erb :form
-# end
-
-# post '/node/:id/edit' do
-# 	n = Node.get(params[:id])
-# 	n.update(params["node"])
-# 	redirect '/node'
-# end
-
-# get '/node/:id/delete' do
-# 	@title = 'Are you sure you want to delete this node?'
-# 	erb :form_confirm
-# end
-
-# # post '/node/:id/delete' do
-# # 	n = Node.get(params[:id])
-# # 	n.delete
-# # 	redirect '/node'
-# # end
-
-# get '/node/:id' do
-# 	@node = Node.get(params[:id]);
-# 	erb :node
-# end
-
-# get '/node' do
-# 	@title = 'hi'
-# 	# @blobs = SchemaBlob.enumerate
-# 	@node_list = Node.index
-# 	# @title = 'Hello and Welcome'
-# 	erb :index
-# end
