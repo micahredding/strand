@@ -184,109 +184,35 @@ end
 
 class Node < MutableObject
 	attr_accessor :title, :body
-
-# 	def json_content
-# 		{'title' => @title, 'body' => @body}.to_json
-# 	end
-
-# 	def initialize(node_hash)
-# 		@title = node_hash[:title] || node_hash['title'] || 'title'
-# 		@body = node_hash[:body] || node_hash['body'] || 'body'
-# 		@id = node_hash[:id] || node_hash['id'] || Blobserver.blobref(json_content)
-# 	end
-
-# 	def save
-# 		Blobserver.put json_content
-# 	end
-
-# 	def Node.get(blobref)
-# 		blobcontent = Blobserver.get(blobref)
-# 		blobhash = JSON.parse(blobcontent)
-# 		blobhash['id'] = blobref
-# 		Node.new(blobhash)
-# 	end
-
-# 	def Node.create_new_from_scratch(node_hash)
-# 		permanode = Permanode.create
-# 		content = Content.create(node_hash)
-# 		claim = Claim.create(permanode, content)
-# 	end
-
-# 	def Node.create(node_hash)
-# 		# create a Node
-# 		node = Node.new(node_hash)
-
-# 		# create a permanode
-# 		@permanode = Permanode.create
-
-# 		# create a blob for the content
-# 		content = Content.create(node_hash)
-
-# 		# create a claim to attach
-# 		claim = Claim.create(@permanode, content)
-# 	end
-
-# 	def update(node_hash)
-# 		@title = node_hash[:title] || node_hash['title'] || @title
-# 		@body = node_hash[:body] || node_hash['body'] || @body
-# 		@permanode.put_content hash_content
-# 		# @@nodes[@id] = self
-# 		# Node.write_all_items
-# 	end
-
-# 	# def delete
-# 	# 	@@nodes.delete(@id)
-# 	# 	Node.write_all_items
-# 	# end
-
-# 	# def Node.create(node_hash)
-# 	# 	node = Node.new(node_hash)
-# 		# permanode.put_content node_hash
-# 		# @@nodes[node.id] = node
-# 		# Node.write_all_items
-# 		# permanode
-# 	# end
-
-
-	# def Node.index
-	# 	nodes = {}
-	# 	Blobserver.enumerate.each do |blobref, blobcontent|
-	# 		nodes[blobref] = Node.get(blobref)
-	# 	end
-	# 	nodes
-	# end
-
-# 	# Node.read_all_items
-
 end
 
-get '/object/create' do
-	@title = 'MutableObject'
-	@mutableobject = MutableObject.create
-	redirect "/object/#{@mutableobject.blobref}"
+get '/node/create' do
+	@title = 'Node'
+	@node = Node.create
+	redirect "/node/#{@node.blobref}"
 end
 
-get '/object/:permanode_ref' do
-	@title = 'MutableObject'
-	@mutableobject = MutableObject.get(params[:permanode_ref])
-	@permanode = @mutableobject.permanode
-	@content = @mutableobject.content.blobhash
+get '/node/:permanode_ref' do
+	@title = 'Node'
+	@node = Node.get(params[:permanode_ref])
+	@permanode = @node.permanode
+	@content = @node.content.blobhash
 	erb :mutableobject
 end
 
-get '/object/:permanode_ref/edit' do
-	@title = 'Edit MutableObject'
-	@mutableobject = MutableObject.get(params[:permanode_ref])
-	@permanode = @mutableobject.permanode
-	@content = @mutableobject.content.blobhash
+get '/node/:permanode_ref/edit' do
+	@title = 'Edit Node'
+	@node = Node.get(params[:permanode_ref])
+	@permanode = @node.permanode
+	@content = @node.content.blobhash
 	erb :form
 end
 
-post '/object/:permanode_ref/edit' do
-	@title = 'Edit MutableObject'
-	@mutableobject = MutableObject.get(params[:permanode_ref])
-	@mutableobject.update(params['content'])
-	redirect "/object/#{params[:permanode_ref]}"
+post '/node/:permanode_ref/edit' do
+	@title = 'Edit Node'
+	@node = Node.get(params[:permanode_ref])
+	@node.update(params['content'])
+	redirect "/node/#{params[:permanode_ref]}"
 end
 
 get '/claim/create/:permanode_blobref' do
