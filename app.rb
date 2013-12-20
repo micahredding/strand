@@ -21,7 +21,7 @@ class Blobserver
 
 	def Blobserver.get blobref
 	  blobs = Blobserver.read_all_items
-	  blobs[blobref]
+	  blobs[blobref] || nil
 	end
 
 	def Blobserver.enumerate
@@ -46,6 +46,7 @@ end
 class SchemaBlob
 	attr_accessor :blobref, :blobcontent, :blobhash
 	def initialize blobref, blobcontent
+		if blobref.nil? || blobcontent.nil? then return nil end
 		@blobref = blobref
 		@blobcontent = blobcontent
 		@blobhash = JSON.parse(@blobcontent) || {}
@@ -64,7 +65,7 @@ class SchemaBlob
 	end
 	def self.get blobref
 		blobcontent = Blobserver.get(blobref)
-		self.new(blobref, blobcontent)
+		self.new(blobref, blobcontent) || nil
 	end
 	def self.put blobcontent
 		Blobserver.put(blobcontent)
@@ -193,10 +194,14 @@ end
 
 get '/node/:permanode_ref' do
 	@node = Node.get(params[:permanode_ref])
-	@title = @node.title || @node.blobref
-	@permanode = @node.permanode
-	@content = @node.content
-	erb :node
+	if @node
+		@title = @node.title || @node.blobref
+		@permanode = @node.permanode
+		@content = @node.content
+		erb :node
+	else
+		redirect '/error'
+	end
 end
 
 get '/node/:permanode_ref/edit' do
@@ -218,6 +223,10 @@ get '/node' do
 	@title = 'All Nodes'
 	@nodes = Node.enumerate
 	erb :index
+end
+
+get '/error' do
+	erb :error
 end
 
 get '/' do
