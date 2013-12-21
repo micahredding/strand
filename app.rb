@@ -6,7 +6,6 @@ require 'pry'
 require 'camlistore'
 
 camli = Camlistore.new
-puts camli.inspect
 result = camli.enumerate_blobs(limit: 1)
 puts result.inspect
 
