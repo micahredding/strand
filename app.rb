@@ -3,6 +3,24 @@ require 'sinatra/form_helpers'
 require 'json'
 require 'digest/sha1'
 require 'pry'
+require 'camlistore'
+
+camli = Camlistore.new
+puts camli.inspect
+result = camli.enumerate_blobs(limit: 1)
+puts result.inspect
+
+# http://stackoverflow.com/a/9361331/3015918
+module JSON
+  def self.is_json?(foo)
+    begin
+      return false unless foo.is_a?(String)
+      JSON.parse(foo).all?
+    rescue JSON::ParserError
+      false
+    end
+  end
+end
 
 class Blobserver
 	Filename = "public/blobs.json"
@@ -12,7 +30,7 @@ class Blobserver
 	end
 
 	def Blobserver.put blobcontent
-	  blobs = Blobserver.read_all_items
+	  blobs = Blobserver.enumerate
 	  blobref = Blobserver.blobref(blobcontent)
 	  blobs[blobref] = blobcontent
 	  Blobserver.write_all_items blobs
@@ -20,12 +38,8 @@ class Blobserver
 	end
 
 	def Blobserver.get blobref
-	  blobs = Blobserver.read_all_items
+	  blobs = Blobserver.enumerate
 	  blobs[blobref] || nil
-	end
-
-	def Blobserver.enumerate
-		Blobserver.read_all_items
 	end
 
 	def Blobserver.write_all_items blobs
@@ -34,7 +48,7 @@ class Blobserver
 		end
 	end
 
-	def Blobserver.read_all_items
+	def Blobserver.enumerate
 		blobsource = {}
 	  File.open(Filename, "r") do |f|
 	    blobsource = JSON.load( f )
@@ -43,216 +57,119 @@ class Blobserver
 	end
 end
 
-class SchemaBlob
-	attr_accessor :blobref, :blobcontent, :blobhash
+class Blobloader
+	def self.get blobref
+		self.load(blobref, Blobserver.get(blobref))
+	end
+	def self.load blobref, blobcontent
+		return SchemaBlob.new(blobref, blobcontent) if SchemaBlob.valid?(blobcontent)
+		return Blob.new(blobref, blobcontent) if Blob.valid?(blobcontent)
+	end
+end
+
+class Blob
+	attr_accessor :blobref, :blobcontent
 	def initialize blobref, blobcontent
-		if blobref.nil? || blobcontent.nil? then return nil end
 		@blobref = blobref
 		@blobcontent = blobcontent
-		@blobhash = JSON.parse(@blobcontent) || {}
 	end
-	def save
-		Blobserver.put(@blobcontent)
-	end
-	def self.type
-		name.downcase
-	end
-	def self.create blobcontent
-		blobref = Blobserver.blobref(blobcontent)
-		schemablob = self.new(blobref, blobcontent)
-		schemablob.save
-		schemablob
+	def self.valid? blobcontent
+		true
 	end
 	def self.get blobref
 		blobcontent = Blobserver.get(blobref)
-		if blobcontent.nil? then return nil end
-		self.new(blobref, blobcontent)
-	end
-	def self.put blobcontent
-		Blobserver.put(blobcontent)
-	end
-	def self.enumerate
-		blobs = Blobserver.enumerate
-		schemablobs = []
-		blobs.each do |blobref, blobcontent|
-			blobhash = JSON.parse(blobcontent)
-			if blobhash['type'] == self.type
-				schemablobs << self.new(blobref, blobcontent)
-			end
-		end
-		schemablobs
-	end
-	def self.find_by field, value
-		blobs = Blobserver.enumerate
-		schemablobs = []
-		blobs.each do |blobref, blobcontent|
-			blobhash = JSON.parse(blobcontent)
-			if blobhash['type'] == self.type && blobhash[field] == value
-				schemablobs << self.new(blobref, blobcontent)
-			end
-		end
-		schemablobs
-	end
-end
-
-class Permanode < SchemaBlob
-	def Permanode.create
-		blobcontent = {
-			'type' => 'permanode',
-			'random' => rand(0..1000)
-		}.to_json
-		super blobcontent
-	end
-	def claims
-		Claim.find_by_permanode(@blobref)
-	end
-	def current_claim
-		claims.last || nil
-	end
-	def current_content
-		return nil if current_claim.nil?
-		current_claim.content
-	end
-end
-
-class Claim < SchemaBlob
-	def Claim.create permanode, content
-		blobcontent = {
-			'type' => 'claim',
-			'permanode' => permanode.blobref || permanode,
-			'content' => content.blobref || content,
-		}.to_json
-		super blobcontent
-	end
-	def Claim.find_by_permanode permanode_ref
-		self.find_by('permanode', permanode_ref)
-	end
-	def content
-		Content.get(@blobhash['content'])
-	end
-end
-
-class Content < SchemaBlob
-	def Content.create content_hash
-		blobcontent = content_hash.to_json
-		super blobcontent
-	end
-end
-
-class MutableObject
-	attr_accessor :permanode
-	def initialize(permanode) @permanode = permanode end
-	def blobref() @permanode.blobref end
-	def content() revisions.last || {} end
-	def current()	revisions.last || {} end
-
-	def revision blobref
-		claims = Claim.find_by_permanode(@permanode.blobref)
-		claims.each do |claim|
-			if claim.blobref == blobref || claim.content.blobref == blobref
-				return claim.content.blobhash
-			end
-		end
-		nil
-	end
-
-	def revisions
-		claims = Claim.find_by_permanode(@permanode.blobref)
-		revisions = []
-		claims.each do |claim|
-			revisions << claim.content.blobhash || 'sss'
-			# revisions << Content.get(claim.blobhash['content']).blobhash
-		end
-		revisions
-	end
-
-	def update(content_hash)
-		content = Content.create(content_hash)
-		claim = Claim.create(@permanode, content)
-	end
-
-	def self.create
-		@permanode = Permanode.create
-		self.new(@permanode)
-	end
-
-	def self.get blobref
-		permanode = Permanode.get(blobref)
-		if permanode.blobref
-			self.new(permanode)
+		if blobcontent
+			self.new(blobref, blobcontent)
 		else
 			nil
 		end
 	end
-
+	def self.put blobcontent
+		self.new(Blobserver.put(blobcontent), blobcontent)
+	end
 	def self.enumerate
-		objects = []
-		Permanode.enumerate.each do |permanode|
-			objects << self.new(permanode)
+		blobs = []
+		Blobserver.enumerate.each do |blobref, blobcontent|
+			blobs << self.new(blobref, blobcontent)
 		end
-		objects
-	end
-
-end
-
-class Node < MutableObject
-	def title
-		content['title'] if not content.nil?
-	end
-	def body
-		content['body'] if not content.nil?
+		blobs
 	end
 end
 
-get '/node/create' do
-	@title = 'Node'
-	@node = Node.create
-	redirect "/node/#{@node.blobref}"
+class SchemaBlob < Blob
+	def blobhash
+		JSON.parse(@blobcontent)
+	end
+	def self.valid? blobcontent
+		JSON.is_json?(blobcontent)
+	end
+	def self.find_by field, value
+		blobs = self.enumerate
+		blobs.select do |blob|
+			blob.blobhash[field] == value
+		end
+		blobs
+	end
 end
 
-get '/node/:permanode_ref' do
-	@node = Node.get(params[:permanode_ref])
-	if @node.nil?
+# class Permanode < SchemaBlob
+# 	def Permanode.create
+# 		blobcontent = {
+# 			'type' => 'permanode',
+# 			'random' => rand(0..1000)
+# 		}.to_json
+# 		super blobcontent
+# 	end
+# 	def claims
+# 		Claim.find_by_permanode(@blobref)
+# 	end
+# 	def current_claim
+# 		claims.last || nil
+# 	end
+# 	def current_content
+# 		return nil if current_claim.nil?
+# 		current_claim.content
+# 	end
+# end
+
+# class Claim < SchemaBlob
+# 	def Claim.create permanode, content
+# 		blobcontent = {
+# 			'type' => 'claim',
+# 			'permanode' => permanode.blobref || permanode,
+# 			'content' => content.blobref || content,
+# 		}.to_json
+# 		super blobcontent
+# 	end
+# 	def Claim.find_by_permanode permanode_ref
+# 		self.find_by('permanode', permanode_ref)
+# 	end
+# 	def content
+# 		Content.get(@blobhash['content'])
+# 	end
+# end
+
+get '/b/create' do
+	erb :blobform
+end
+
+post '/b/create' do
+	@blob = Blob.put(params[:blob]["blobcontent"])
+	redirect "/b/#{@blob.blobref}"
+end
+
+get '/b/:blobref' do
+	@blob = Blobloader.get(params[:blobref])
+	if @blob.nil?
 		redirect '/error'
 	end
-	@revisions = @node.revisions
-	@content = @node.content
-	@title = @content['title'] || @node.blobref
-	erb :node
+	@title = @blob.blobref
+	erb :blob
 end
 
-get '/node/:permanode_ref/edit' do
-	@node = Node.get(params[:permanode_ref])
-	if @node.nil?
-		redirect '/error'
-	end
-	@title = 'Edit Node'
-	@content = @node.content
-	erb :form
-end
-
-post '/node/:permanode_ref/edit' do
-	@node = Node.get(params[:permanode_ref])
-	if @node.nil?
-		redirect '/error'
-	end
-	@node.update(params['content'])
-	redirect "/node/#{params[:permanode_ref]}"
-end
-
-get '/node/:permanode_ref/:revision_ref' do
-	@node = Node.get(params[:permanode_ref])
-	if @node.nil?
-		redirect '/error'
-	end
-	@content = @node.revision(params[:revision_ref])
-	@title = @content['title'] || @node.blobref
-	erb :node
-end
-
-get '/node' do
-	@title = 'All Nodes'
-	@nodes = Node.enumerate
+get '/b' do
+	@title = 'All Blobs'
+	@blobs = Blob.enumerate
 	erb :index
 end
 
@@ -262,5 +179,5 @@ get '/error' do
 end
 
 get '/' do
-	redirect '/node'
+	redirect '/b'
 end
