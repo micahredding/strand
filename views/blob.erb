@@ -1,13 +1,4 @@
 <pre><%= @dpm || '' %></pre>
 <% if @blob %>
-	Type: <%= @blob.class.name %><br />
-	<% if @blob.respond_to?(:blobhash) %>
-		camliVersion: <%= @blob.blobhash['camliVersion'] || 1 %><br />
-		camliType: <%= @blob.blobhash['camliType'] || @blob.blobhash['type'] %><br /><br />
-		<% @blob.blobhash.each do |key, value| %>
-		<%= key %>: <%= value %><br />
-		<% end %>
-	<% else %><br />
-		<%= @blob.blobcontent %>
-	<% end %>
+<%= blob %>
 <% end %>

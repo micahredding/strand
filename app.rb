@@ -5,10 +5,6 @@ require 'digest/sha1'
 require 'pry'
 require 'camlistore'
 
-camli = Camlistore.new
-result = camli.enumerate_blobs(limit: 1)
-puts result.inspect
-
 # http://stackoverflow.com/a/9361331/3015918
 module JSON
   def self.is_json?(foo)
@@ -23,9 +19,15 @@ end
 
 class Blobserver
 	Filename = "public/blobs.json"
+	@@camli = Camlistore.new
+	# result = camli.enumerate_blobs(limit: 1)
 
 	def Blobserver.blobref blobcontent
 		Digest::SHA1.hexdigest(blobcontent)
+	end
+
+	def Blobserver.enumerate
+		@@camli.enumerate_blobs.blobs
 	end
 
 	def Blobserver.put blobcontent
@@ -38,7 +40,11 @@ class Blobserver
 
 	def Blobserver.get blobref
 	  blobs = Blobserver.enumerate
-	  blobs[blobref] || nil
+	  blobs.each do |blob|
+	  	if blob['blobRef'] == blobref
+	  		return blob
+	  	end
+	  end
 	end
 
 	def Blobserver.write_all_items blobs
@@ -47,69 +53,69 @@ class Blobserver
 		end
 	end
 
-	def Blobserver.enumerate
-		blobsource = {}
-	  File.open(Filename, "r") do |f|
-	    blobsource = JSON.load( f )
-	  end
-	  blobsource
-	end
+	# def Blobserver.enumerate
+	# 	blobsource = {}
+	#   File.open(Filename, "r") do |f|
+	#     blobsource = JSON.load( f )
+	#   end
+	#   blobsource
+	# end
 end
 
-class Blobloader
-	def self.get blobref
-		self.load(blobref, Blobserver.get(blobref))
-	end
-	def self.load blobref, blobcontent
-		return SchemaBlob.new(blobref, blobcontent) if SchemaBlob.valid?(blobcontent)
-		return Blob.new(blobref, blobcontent) if Blob.valid?(blobcontent)
-	end
-end
+# class Blobloader
+# 	def self.get blobref
+# 		self.load(blobref, Blobserver.get(blobref))
+# 	end
+# 	def self.load blobref, blobcontent
+# 		return SchemaBlob.new(blobref, blobcontent) if SchemaBlob.valid?(blobcontent)
+# 		return Blob.new(blobref, blobcontent) if Blob.valid?(blobcontent)
+# 	end
+# end
 
-class Blob
-	attr_accessor :blobref, :blobcontent
-	def initialize blobref, blobcontent
-		@blobref = blobref
-		@blobcontent = blobcontent
-	end
-	def self.valid? blobcontent
-		true
-	end
-	def self.get blobref
-		blobcontent = Blobserver.get(blobref)
-		if blobcontent
-			self.new(blobref, blobcontent)
-		else
-			nil
-		end
-	end
-	def self.put blobcontent
-		self.new(Blobserver.put(blobcontent), blobcontent)
-	end
-	def self.enumerate
-		blobs = []
-		Blobserver.enumerate.each do |blobref, blobcontent|
-			blobs << self.new(blobref, blobcontent)
-		end
-		blobs
-	end
-end
+# class Blob
+# 	attr_accessor :blobref, :blobcontent
+# 	def initialize blobref, blobcontent
+# 		@blobref = blobref
+# 		@blobcontent = blobcontent
+# 	end
+# 	def self.valid? blobcontent
+# 		true
+# 	end
+# 	def self.get blobref
+# 		blobcontent = Blobserver.get(blobref)
+# 		if blobcontent
+# 			self.new(blobref, blobcontent)
+# 		else
+# 			nil
+# 		end
+# 	end
+# 	def self.put blobcontent
+# 		self.new(Blobserver.put(blobcontent), blobcontent)
+# 	end
+# 	def self.enumerate
+# 		blobs = []
+# 		Blobserver.enumerate.each do |blobref, blobcontent|
+# 			blobs << self.new(blobref, blobcontent)
+# 		end
+# 		blobs
+# 	end
+# end
 
-class SchemaBlob < Blob
-	def blobhash
-		JSON.parse(@blobcontent)
-	end
-	def self.valid? blobcontent
-		JSON.is_json?(blobcontent)
-	end
-	def self.find_by field, value
-		blobs = self.enumerate
-		blobs.select do |blob|
-			blob.blobhash[field] == value
-		end
-		blobs
-	end
-end
+# class SchemaBlob < Blob
+# 	def blobhash
+# 		JSON.parse(@blobcontent)
+# 	end
+# 	def self.valid? blobcontent
+# 		JSON.is_json?(blobcontent)
+# 	end
+# 	def self.find_by field, value
+# 		blobs = self.enumerate
+# 		blobs.select do |blob|
+# 			blob.blobhash[field] == value
+# 		end
+# 		blobs
+# 	end
+# end
 
 # class Permanode < SchemaBlob
 # 	def Permanode.create
@@ -158,7 +164,7 @@ post '/b/create' do
 end
 
 get '/b/:blobref' do
-	@blob = Blobloader.get(params[:blobref])
+	@blob = Blobserver.get(params[:blobref])
 	if @blob.nil?
 		redirect '/error'
 	end
@@ -168,7 +174,7 @@ end
 
 get '/b' do
 	@title = 'All Blobs'
-	@blobs = Blob.enumerate
+	@blobs = Blobserver.enumerate
 	erb :index
 end
 
