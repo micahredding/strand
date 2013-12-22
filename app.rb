@@ -51,34 +51,26 @@ class Blobserver
 
 end
 
-# class Blob
-# 	attr_accessor :blobref, :blobcontent
-# 	def initialize blobref, blobcontent
-# 		@blobref = blobref
-# 		@blobcontent = blobcontent
-# 	end
-# 	def self.valid? blobcontent
-# 		true
-# 	end
-# 	def self.get blobref
-# 		blobcontent = Blobserver.get(blobref)
-# 		if blobcontent
-# 			self.new(blobref, blobcontent)
-# 		else
-# 			nil
-# 		end
-# 	end
-# 	def self.put blobcontent
-# 		self.new(Blobserver.put(blobcontent), blobcontent)
-# 	end
-# 	def self.enumerate
-# 		blobs = []
-# 		Blobserver.enumerate.each do |blobref, blobcontent|
-# 			blobs << self.new(blobref, blobcontent)
-# 		end
-# 		blobs
-# 	end
-# end
+class Blob
+	attr_accessor :blobref, :blobcontent
+	def initialize blobref, blobcontent
+		@blobref = blobref
+		@blobcontent = blobcontent
+	end
+	def self.get blobref
+		self.new(blobref, Blobserver.get(blobref))
+	end
+	def self.put blobcontent
+		self.new(Blobserver.put(blobcontent), blobcontent)
+	end
+	def self.enumerate
+		blobs = []
+		Blobserver.enumerate.each do |blobref, blobcontent|
+			blobs << self.new(blobref, blobcontent)
+		end
+		blobs
+	end
+end
 
 # class SchemaBlob < Blob
 # 	def blobhash
@@ -138,25 +130,22 @@ get '/b/create' do
 end
 
 post '/b/create' do
-	blobcontent = params[:blob]["blobcontent"]
-	puts blobcontent
-	@blob = Blobserver.put(blobcontent)
+	@blob = Blob.put(params[:blob]["blobcontent"])
 	redirect "/b/#{@blob['blobRef']}"
-	redirect '/b/create'
 end
 
 get '/b/:blobref' do
-	@blob = Blobserver.get(params[:blobref])
+	@blob = Blob.get(params[:blobref])
 	if @blob.nil?
 		redirect '/error'
 	end
-	@title = @blob['blobRef']
+	@title = @blob.blobref
 	erb :blob
 end
 
 get '/b' do
 	@title = 'All Blobs'
-	@blobs = Blobserver.enumerate
+	@blobs = Blob.enumerate
 	erb :index
 end
 
