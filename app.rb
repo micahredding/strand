@@ -18,7 +18,6 @@ module JSON
 end
 
 class Blobserver
-	Filename = "public/blobs.json"
 	@@camli = Camlistore.new
 
 	def Blobserver.blobref blobcontent
