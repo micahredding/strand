@@ -24,6 +24,10 @@ class Blobserver
 		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
 	end
 
+	def Blobserver.get blobref
+	  @@camli.get(blobref)
+	end
+
 	def Blobserver.enumerate
 		@@camli.enumerate_blobs.blobs
 	end
@@ -42,11 +46,8 @@ class Blobserver
 		post_body << blobcontent
 		post_body << "\n" + '--' + boundary + '--'
 
-		RestClient.post upload_url, post_body, :content_type => content_type, :host => host
-	end
-
-	def Blobserver.get blobref
-	  @@camli.get(blobref)
+		response = RestClient.post upload_url, post_body, :content_type => content_type, :host => host
+		if JSON.parse(response)['received'][0]['blobRef'] then blobref else nil end
 	end
 
 end
@@ -65,8 +66,8 @@ class Blob
 	end
 	def self.enumerate
 		blobs = []
-		Blobserver.enumerate.each do |blobref, blobcontent|
-			blobs << self.new(blobref, blobcontent)
+		Blobserver.enumerate.each do |blobhash|
+			blobs << self.get(blobhash['blobRef'])
 		end
 		blobs
 	end
@@ -131,7 +132,7 @@ end
 
 post '/b/create' do
 	@blob = Blob.put(params[:blob]["blobcontent"])
-	redirect "/b/#{@blob['blobRef']}"
+	redirect "/b/#{@blob.blobref}"
 end
 
 get '/b/:blobref' do
