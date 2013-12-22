@@ -25,32 +25,6 @@ class Blobserver
 		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
 	end
 
-	def Blobserver.blobput blobref, blobcontent
-# 		blobref = "sha1-a7c4d9152da314a315bf8bf05dab47e304f357d7"
-# 		blobcontent = '{"camliVersion":1,
-# "camliType": "permanode",
-# "random": "0.9015915733762085",
-# "camliSigner": "sha1-2e966deb5cd0ba8e3b52a92c833202b8aec48e4a"
-# ,"camliSig":"wsBcBAABCAAQBQJStQgTCRCAZO3d6Pb+CAAAd68IAGj0I8QzNTNfAkTo8FqEqQU2RVrBlpdM83Nv4Oa9cPYkMBvdPKFy8qGMAnfgDTXmdjozHk9+/Mb8F7hXMjbN76X9h7CbJ3bpFNaN03AD9IbtckD1qYSvh8IUkxNGyEYNSudUl4Zx4b0SfSwPMjFsE/5zjdaxyA+Oy3Iirs2nK02fXV/afawF0VCviPuW8DA1NvXtuLxuxw6tQzPMTc1gH7VQ0UFii8UTByERBCc7V394mFxOecLvMgikJwRs55ORb3OFCPEqyakAeyWpjf/y0ABuwVNF7ycJgY3liX8f3fknlXvFHXEHLZA5D9stpsi+SDA0jc6SjYQAjdFAJ0yzHaQ==owOF"}'
-
-		# response = RestClient.get 'http://localhost:3179/bs/camli/stat?camliversion=1'
-		# json_body = JSON.parse(response.body)
-		# upload_url = json_body['uploadUrl']
-		boundary = 'randomboundaryXYZ'
-		content_type = "multipart/form-data; boundary=randomboundaryXYZ"
-		host = "localhost:3179"
-		upload_url = 'http://localhost:3179/bs/camli/upload'
-
-		post_body = ''
-		post_body << "--" + boundary + "\n"
-		post_body << 'Content-Disposition: form-data; name="' + blobref + '"; filename="' + blobref + '"' + "\n"
-		post_body << 'Content-Type: application/octet-stream' + "\n\n"
-		post_body << blobcontent
-		post_body << "\n" + '--' + boundary + '--'
-
-		RestClient.post upload_url, post_body, :content_type => content_type, :host => host
-	end
-
 	def Blobserver.enumerate
 		@@camli.enumerate_blobs.blobs
 	end
@@ -70,33 +44,12 @@ class Blobserver
 		post_body << "\n" + '--' + boundary + '--'
 
 		RestClient.post upload_url, post_body, :content_type => content_type, :host => host
-	  # blob = @@camli.put(blobcontent)
-	  # puts blob.inspect
-	  # blob
-	  # blobs = Blobserver.enumerate
-	  # blobref = Blobserver.blobref(blobcontent)
-	  # blobs[blobref] = blobcontent
-	  # Blobserver.write_all_items blobs
-	  # blobref
 	end
 
 	def Blobserver.get blobref
 	  @@camli.get(blobref)
 	end
 
-	# def Blobserver.write_all_items blobs
-	# 	File.open(Filename,"w") do |f|
-	# 	  f.write(JSON.dump(blobs))
-	# 	end
-	# end
-
-	# def Blobserver.enumerate
-	# 	blobsource = {}
-	#   File.open(Filename, "r") do |f|
-	#     blobsource = JSON.load( f )
-	#   end
-	#   blobsource
-	# end
 end
 
 # class Blob
