@@ -3,5 +3,5 @@ This is intended to be an open-source CMS, used for simple and elegant projects.
 <br /><br />
 <pre><%= @dpm %></pre>
 <%	@blobs.each do |blob| %>
-	<a href="/b/<%= blob.blobref %>"><%= blob.blobref %></a><br />
+	<a href="/b/<%= blob.blobref %>"><%= blob.blobcontent %></a><br /><br />
 <% end %>

@@ -12,10 +12,10 @@
   <body>
     <div id="toolbar">
       <a href="/b" class="trigger">&#9728;</a>
-      <a href="/b/create">New</a>
-      <% if @node %>
-        <a href="/node/<%= @node.blobref %>/edit">Edit</a>
-        <a href="/node/<%= @node.blobref %>/delete">Delete</a>
+      <a href="/p/create">New Permanode</a>
+      <% if @blob %>
+        <a href="/p/<%= @blob.blobref %>/edit">Edit</a>
+        <a href="/p/<%= @blob.blobref %>/delete">Delete</a>
       <% end %>
     </div>
     <div id="main">

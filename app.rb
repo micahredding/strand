@@ -32,6 +32,14 @@ class Blobserver
 		@@camli.enumerate_blobs.blobs
 	end
 
+	def Blobserver.create_permanode
+		'./camput permanode'
+	end
+
+	def Blobserver.update_permanode blobref, attribute, value
+		system "./camput attr #{blobref} #{attribute} '#{value}'"
+	end
+
 	def Blobserver.put blobcontent
 		blobref = Blobserver.blobref(blobcontent)
 		boundary = 'randomboundaryXYZ'
@@ -66,74 +74,84 @@ class Blob
 	end
 	def self.enumerate
 		blobs = []
-		Blobserver.enumerate.each do |blobhash|
-			blobs << self.get(blobhash['blobRef'])
+		Blobserver.enumerate.each do |blob|
+			blobs << self.get(blob['blobRef'])
 		end
 		blobs
 	end
 end
 
-# class SchemaBlob < Blob
-# 	def blobhash
-# 		JSON.parse(@blobcontent)
-# 	end
-# 	def self.valid? blobcontent
-# 		JSON.is_json?(blobcontent)
-# 	end
-# 	def self.find_by field, value
-# 		blobs = self.enumerate
-# 		blobs.select do |blob|
-# 			blob.blobhash[field] == value
-# 		end
-# 		blobs
-# 	end
-# end
-
-# class Permanode < SchemaBlob
-# 	def Permanode.create
-# 		blobcontent = {
-# 			'type' => 'permanode',
-# 			'random' => rand(0..1000)
-# 		}.to_json
-# 		super blobcontent
-# 	end
-# 	def claims
-# 		Claim.find_by_permanode(@blobref)
-# 	end
-# 	def current_claim
-# 		claims.last || nil
-# 	end
-# 	def current_content
-# 		return nil if current_claim.nil?
-# 		current_claim.content
-# 	end
-# end
-
-# class Claim < SchemaBlob
-# 	def Claim.create permanode, content
-# 		blobcontent = {
-# 			'type' => 'claim',
-# 			'permanode' => permanode.blobref || permanode,
-# 			'content' => content.blobref || content,
-# 		}.to_json
-# 		super blobcontent
-# 	end
-# 	def Claim.find_by_permanode permanode_ref
-# 		self.find_by('permanode', permanode_ref)
-# 	end
-# 	def content
-# 		Content.get(@blobhash['content'])
-# 	end
-# end
-
-get '/b/create' do
-	erb :blobform
+class SchemaBlob < Blob
+	def blobhash
+		JSON.parse(@blobcontent)
+	end
+	def valid?
+		JSON.is_json?(@blobcontent)
+	end
+	def self.valid? blobcontent
+		JSON.is_json?(blobcontent)
+	end
+	def self.enumerate
+		blobs = super
+		blobs.select do |blob|
+			blob.valid?
+		end
+	end
+	def self.find_by field, value
+		blobs = self.enumerate
+		blobs.select do |blob|
+			blob.blobhash[field] == value
+		end
+		blobs
+	end
 end
 
-post '/b/create' do
-	@blob = Blob.put(params[:blob]["blobcontent"])
-	redirect "/b/#{@blob.blobref}"
+class Permanode < SchemaBlob
+	def self.create
+		blobref = Blobserver.create_permanode
+		self.new(blobref, self.get(blobref))
+	end
+
+	def update attribute, value
+		Blobserver.update_permanode @blobref, attribute, value
+	end
+
+	# def claims
+	# 	Claim.find_by_permanode(@blobref)
+	# end
+	# def current_claim
+	# 	claims.last || nil
+	# end
+	# def current_content
+	# 	return nil if current_claim.nil?
+	# 	current_claim.content
+	# end
+	def valid?
+		super && blobhash['camliType'] == 'permanode'
+	end
 end
+
+class Claim < SchemaBlob
+	# def Claim.create permanode, content
+	# 	blobcontent = {
+	# 		'type' => 'claim',
+	# 		'permanode' => permanode.blobref || permanode,
+	# 		'content' => content.blobref || content,
+	# 	}.to_json
+	# 	super blobcontent
+	# end
+	# def Claim.find_by_permanode permanode_ref
+	# 	self.find_by('permanode', permanode_ref)
+	# end
+	# def content
+	# 	Content.get(@blobhash['content'])
+	# end
+	def valid?
+		super && blobhash['camliType'] == 'claim'
+	end
+end
+
+
 
 get '/b/:blobref' do
 	@blob = Blob.get(params[:blobref])
@@ -149,6 +167,33 @@ get '/b' do
 	@blobs = Blob.enumerate
 	erb :index
 end
+
+get '/p/create' do
+	erb :form_confirm
+end
+
+post '/p/create' do
+	@blob = Permanode.create
+	redirect "/b/#{@blob.blobref}"
+end
+
+get '/p/:blobref/edit' do
+	erb :blobform
+end
+
+post '/p/:blobref/edit' do
+	@permanode = Permanode.get(params[:blobref])
+	@content_blob = Blob.put(params[:blob]['blobtitle'])
+	@permanode.update 'camliContent', @content_blob.blobref
+	redirect "/b/#{params[:blobref]}"
+end
+
+get '/p' do
+	@title = 'All Permanodes'
+	@blobs = Permanode.enumerate
+	erb :index
+end
+
 
 get '/error' do
 	@title = 'Error'
