@@ -34,6 +34,27 @@ class Blobserver
 	def Blobserver.update_permanode blobref, attribute, value
 		system "./camput attr #{blobref} #{attribute} '#{value}'"
 	end
+	def Blobserver.put blobcontent
+		blobref = Blobserver.blobref(blobcontent)
+		boundary = 'randomboundaryXYZ'
+		content_type = "multipart/form-data; boundary=randomboundaryXYZ"
+		host = "localhost:3179"
+		upload_url = 'http://localhost:3179/bs/camli/upload'
+
+		post_body = ''
+		post_body << "--" + boundary + "\n"
+		post_body << 'Content-Disposition: form-data; name="' + blobref + '"; filename="' + blobref + '"' + "\n"
+		post_body << 'Content-Type: application/octet-stream' + "\n\n"
+		post_body << blobcontent
+		post_body << "\n" + '--' + boundary + '--'
+
+		response = RestClient.post upload_url, post_body, :content_type => content_type, :host => host
+		if JSON.parse(response)['received'][0]['blobRef']
+			blobref
+		else
+			nil
+		end
+	end
 end
 
 class Blob
@@ -119,6 +140,13 @@ class Node < Permanode
 		end
 		r
 	end
+	def set_title title
+		update 'title', title
+	end
+	def set_content content
+		blob = Blob.put(content.to_s)
+		update 'camliContent', blob.blobref
+	end
 	def title
 		current.title
 	end
@@ -158,6 +186,9 @@ class NodeRevision
 		  end
 		end
 	end
+	def claim
+		claims.last
+	end
 	def title
 		@content['title'] || @content['name'] || @values['title'] || @values['name'] || @node.blobref
 	end
@@ -196,7 +227,7 @@ post '/node/:node_ref/edit' do
 	if @node.nil?
 		redirect '/error'
 	end
-	@node.update('title', params[:content]['title'])
+	@node.set_content(params[:content])
 	redirect "/node/#{params[:node_ref]}"
 end
 

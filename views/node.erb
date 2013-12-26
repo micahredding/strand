@@ -2,6 +2,7 @@
 <%= @node.title %><br />
 <%= @node.body %>
 <br /><br />
+<h3>Revisions</h3>
 <% @node.revisions.each_with_index do |revision, index| %>
-<a href="/node/<%= @node.blobref %>/<%= index %>"><%= index %> <%= revision.claims.last.blobref %></a><br />
+<a href="/node/<%= @node.blobref %>/<%= index %>"><%= index %> <%= revision.claim.blobhash['claimDate'] %></a><br />
 <% end %>
