@@ -73,7 +73,7 @@ end
 
 class SchemaBlob < Blob
 	def blobhash
-		JSON.parse(@blobcontent)
+		@blobhashinternal ||= JSON.parse(@blobcontent)
 	end
 	def valid?
 		JSON.is_json?(@blobcontent)
@@ -99,6 +99,30 @@ class Claim < SchemaBlob
 	end
 	def valid?
 		super && blobhash['camliType'] == 'claim'
+	end
+	def type
+		blobhash['claimType']
+	end
+	def attribute
+		blobhash['attribute']
+	end
+	def value
+		blobhash['value']
+	end
+	def Claim.process_claims claims
+		values = {}
+		claims.each do |claim|
+			case claim.type
+				when 'set-attribute'
+					values[claim.attribute] = claim.value
+				when 'add-attribute'
+					values[claim.attribute] ||= []
+					values[claim.attribute] << claim.value
+				when 'del-attribute'
+					values.delete(claim.attribute)
+			end
+		end
+		values
 	end
 end
 
@@ -148,44 +172,36 @@ class Node < Permanode
 end
 
 class NodeRevision
-	attr_accessor :node, :version, :claims, :values, :content
+	attr_accessor :node, :version, :claims, :values
 	def initialize node, version
-		@values = {}
 		@content = {}
 		@node = node
 		@version = version
 		@claims = @node.claims.slice(0, @version + 1)
-		@claims.each do |claim|
-			type = claim.blobhash['claimType']
-			attribute = claim.blobhash['attribute']
-			value = claim.blobhash['value']
-			case type
-				when 'set-attribute'
-					@values[attribute] = value
-				when 'add-attribute'
-					@values[attribute] ||= []
-					@values[attribute] << value
-				when 'del-attribute'
-					@values.delete(attribute)
-			end
-		end
+		@values = Claim.process_claims(@claims)
+	end
+	def get_content
 		if @values['camliContent']
 			blob = SchemaBlob.get(@values['camliContent'])
 			if blob.valid?
-				@content = blob.blobhash
+				return blob.blobhash
 			else
-				@content = blob.blobcontent
+				return blob.blobcontent
 		  end
 		end
+		{}
+	end
+	def content
+		@contentinternal ||= get_content
 	end
 	def claim
 		claims.last
 	end
 	def title
-		@content['title'] || @content['name'] || @values['title'] || @values['name'] || @node.blobref
+		content['title'] || content['name'] || @values['title'] || @values['name'] || @node.blobref
 	end
 	def body
-		@content['body'] || @values['body'] || @content
+		content['body'] || @values['body'] || content
 	end
 end
 
@@ -203,6 +219,15 @@ get '/node/:node_ref' do
 	end
 	@title = @node.title || @node.blobref
 	erb :node
+end
+
+get '/node/:node_ref/revisions' do
+	@node = Node.get(params[:node_ref])
+	if @node.nil?
+		redirect '/error'
+	end
+	@title = 'Revisions for ' + @node.title || @node.blobref
+	erb :node_revisions
 end
 
 get '/node/:node_ref/edit' do
@@ -233,7 +258,6 @@ end
 get '/node' do
 	@title = 'All Nodes'
 	@nodes = Node.enumerate
-	@dpm = Blobserver.put('abc')
 	erb :index
 end
 

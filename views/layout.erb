@@ -15,6 +15,7 @@
       <a href="/node/create">New</a>
       <% if @node %>
         <a href="/node/<%= @node.blobref %>/edit">Edit</a>
+        <a href="/node/<%= @node.blobref %>/revisions">Revisions</a>
         <a href="/node/<%= @node.blobref %>/delete">Delete</a>
       <% end %>
     </div>
