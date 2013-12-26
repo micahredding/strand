@@ -107,7 +107,7 @@ end
 
 class Node < Permanode
 	def current
-		NodeRevision.new(self, claims.length)
+		NodeRevision.new(self, claims.length - 1)
 	end
 	def revision version
 		NodeRevision.new(self, version)
@@ -128,11 +128,12 @@ class Node < Permanode
 end
 
 class NodeRevision
-	attr_accessor :node, :version, :claims, :values
+	attr_accessor :node, :version, :claims, :values, :content
 	def initialize node, version
+		@values = {}
+		@content = {}
 		@node = node
 		@version = version
-		@values = {}
 		@claims = @node.claims.slice(0, @version + 1)
 		@claims.each do |claim|
 			type = claim.blobhash['claimType']
@@ -148,21 +149,20 @@ class NodeRevision
 					@values.delete(attribute)
 			end
 		end
-	end
-	def current_content
 		if @values['camliContent']
 			blob = SchemaBlob.get(@values['camliContent'])
-			if blob && blob.valid?
-				return blob.blobhash
+			if blob.valid?
+				@content = blob.blobhash
+			else
+				@content = blob.blobcontent
 		  end
 		end
-		{}
 	end
 	def title
-		@values['title'] || @values['name'] || @node.blobref
+		@content['title'] || @content['name'] || @values['title'] || @values['name'] || @node.blobref
 	end
 	def body
-		@values['body'] || current_content
+		@content['body'] || @values['body'] || @content
 	end
 end
 
@@ -178,8 +178,6 @@ get '/node/:node_ref' do
 	if @node.nil?
 		redirect '/error'
 	end
-	# @revisions = @node.revisions
-	# @content = @node.content
 	@title = @node.title || @node.blobref
 	erb :node
 end
@@ -205,20 +203,9 @@ end
 get '/node/:node_ref/:num' do
 	@node = Node.get(params[:node_ref])
 	@revision = @node.revision(params[:num].to_i)
-	@title = @node.title + ', revision ' + @revision.version.to_s
+	@title = 'Revision ' + @revision.version.to_s
 	erb :node_revision
 end
-
-
-# get '/node/:permanode_ref/:revision_ref' do
-# 	@node = Node.get(params[:permanode_ref])
-# 	if @node.nil?
-# 		redirect '/error'
-# 	end
-# 	@content = @node.revision(params[:revision_ref])
-# 	@title = @content['title'] || @node.blobref
-# 	erb :node
-# end
 
 get '/node' do
 	@title = 'All Nodes'
