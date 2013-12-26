@@ -144,7 +144,7 @@ class Node < Permanode
 		update 'title', title
 	end
 	def set_content content
-		blob = Blob.put(content.to_s)
+		blob = Blob.put(content.to_json)
 		update 'camliContent', blob.blobref
 	end
 	def title
@@ -234,7 +234,7 @@ end
 get '/node/:node_ref/:num' do
 	@node = Node.get(params[:node_ref])
 	@revision = @node.revision(params[:num].to_i)
-	@title = 'Revision ' + @revision.version.to_s
+	@title = @revision.title
 	erb :node_revision
 end
 
@@ -242,6 +242,12 @@ get '/node' do
 	@title = 'All Nodes'
 	@nodes = Node.enumerate
 	erb :index
+end
+
+get '/chronicle' do
+	@title = 'Timeline'
+	@blobs = Claim.enumerate
+	erb :chronicle_index
 end
 
 get '/error' do
