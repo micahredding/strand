@@ -1,12 +1,7 @@
 <pre><%= @dpm || '' %></pre>
-<% if @content %>
-	<%= @content['body'] %>
-<% end %>
+<%= @node.title %><br />
+<%= @node.body %>
 <br /><br />
-<% if @revisions %>
-	<h2>Revisions</h2>
-	<% @revisions.each do |revision| %>
-	<%= revision['title'] %><br />
-	<%= revision['body'] %><br /><br />
-	<% end %>
+<% @node.revisions.each_with_index do |revision, index| %>
+<a href="/node/<%= @node.blobref %>/<%= index %>"><%= index %> <%= revision.claims.last.blobref %></a><br />
 <% end %>
