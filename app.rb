@@ -4,6 +4,7 @@ require 'json'
 require 'digest/sha1'
 require 'camlistore'
 require 'rest_client'
+require 'open3'
 
 # http://stackoverflow.com/a/9361331/3015918
 module JSON
@@ -35,25 +36,16 @@ class Blobserver
 		system "./camput attr #{blobref} #{attribute} '#{value}'"
 	end
 	def Blobserver.put blobcontent
-		blobref = Blobserver.blobref(blobcontent)
-		boundary = 'randomboundaryXYZ'
-		content_type = "multipart/form-data; boundary=randomboundaryXYZ"
-		host = "localhost:3179"
-		upload_url = 'http://localhost:3179/bs/camli/upload'
-
-		post_body = ''
-		post_body << "--" + boundary + "\n"
-		post_body << 'Content-Disposition: form-data; name="' + blobref + '"; filename="' + blobref + '"' + "\n"
-		post_body << 'Content-Type: application/octet-stream' + "\n\n"
-		post_body << blobcontent
-		post_body << "\n" + '--' + boundary + '--'
-
-		response = RestClient.post upload_url, post_body, :content_type => content_type, :host => host
-		if JSON.parse(response)['received'][0]['blobRef']
-			blobref
-		else
-			nil
+		output = nil
+		cmd = "./camput blob - "
+		Open3.popen3(cmd) do |stdin, stdout, stderr|
+			stdin.puts blobcontent
+			stdin.close
+			stdout.each_line do |line|
+				output = line
+			end
 		end
+		output
 	end
 end
 
@@ -241,6 +233,7 @@ end
 get '/node' do
 	@title = 'All Nodes'
 	@nodes = Node.enumerate
+	@dpm = Blobserver.put('abc')
 	erb :index
 end
 
