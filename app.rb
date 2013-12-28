@@ -4,6 +4,7 @@ require 'json'
 require 'digest/sha1'
 require 'camlistore'
 require 'open3'
+require 'rest_client'
 
 module JSON
   def self.is_json?(foo)
