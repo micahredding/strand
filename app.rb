@@ -3,7 +3,6 @@ require 'sinatra/form_helpers'
 require 'json'
 require 'digest/sha1'
 require 'camlistore'
-require 'rest_client'
 require 'open3'
 
 # http://stackoverflow.com/a/9361331/3015918
