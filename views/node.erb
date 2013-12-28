@@ -1,12 +1,4 @@
-<pre><%= @dpm || '' %></pre>
-<% if @content %>
-	<%= @content['body'] %>
-<% end %>
-<br /><br />
-<% if @revisions %>
-	<h2>Revisions</h2>
-	<% @revisions.each do |revision| %>
-	<%= revision['title'] %><br />
-	<%= revision['body'] %><br /><br />
-	<% end %>
-<% end %>
+<% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
+<p class="date"><em><%= @node.time.strftime("%B %d, %Y %I:%M%p") %></em></p>
+<h1><%= @title %></h1>
+<%= @node.body %>

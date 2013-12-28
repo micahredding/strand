@@ -1,0 +1,4 @@
+<pre><%= @dpm || '' %></pre><br />
+<% @node.revisions.each_with_index do |revision, index| %>
+<a href="/node/<%= @node.blobref %>/<%= index %>"><%= index %> <%= revision.claim.blobhash['claimDate'] %></a><br />
+<% end %>

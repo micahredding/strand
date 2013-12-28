@@ -1,0 +1,17 @@
+<pre><%= @dpm %></pre>
+<%	@blobs.each do |blob| %>
+	<%
+		claimType = blob.blobhash['claimType']
+		case claimType
+			when 'set-attribute'
+				action = 'set to'
+			when 'add-attribute'
+				action = 'added to'
+			when 'del-attribute'
+				action = 'deleted'
+		end
+
+		title = blob.blobhash['attribute'].capitalize + ' ' + action + ' ' + blob.blobhash['value']
+	%>
+	<%= blob.blobhash['claimDate'] %> <a href="/b/<%= blob.blobref %>"><%= title %></a><br />
+<% end %>
