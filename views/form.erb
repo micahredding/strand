@@ -1,11 +1,6 @@
 <%
-if @node
-	title = @node.title
-	body = @node.body
-else
-	title = ''
-	body = ''
-end
+title = @node && @node.title || ''
+body = @node && @node.body || ''
 %>
 <%= form(request.fullpath, :post) %>
 <%= input(:content, :title, :value => title) %>

@@ -36,14 +36,11 @@ class Blobserver
 	def Blobserver.create_permanode
 		`./camput permanode`
 	end
-	# def Blobserver.create_share blobref
-	# 	system "./camput share --transitive '#{blobref}'"
-	# end
 	def Blobserver.update_permanode blobref, attribute, value
 		blobref.delete!("\n")
 		attribute.delete!("\n")
 		value.delete!("\n")
-		`./camput attr #{blobref} #{attribute} #{value}`
+		`./camput attr #{blobref} #{attribute} '#{value}'`
 	end
 	def Blobserver.put blobcontent
 		output = nil
@@ -119,6 +116,7 @@ class Claim < SchemaBlob
 	def attribute() blobhash['attribute'] end
 	def value()	blobhash['value'] end
 	def date() DateTime.parse(blobhash['claimDate']) end
+	def time() date.to_time end
 
 	def valid?
 		super && blobhash['camliType'] == 'claim'
@@ -129,21 +127,6 @@ class Claim < SchemaBlob
 	def self.find_by_permanode permanode_ref
 		self.find_by('permaNode', permanode_ref)
 	end
-	# def self.process_claims claims
-	# 	values = {}
-	# 	claims.each do |claim|
-	# 		case claim.type
-	# 			when 'set-attribute'
-	# 				values[claim.attribute] = claim.value
-	# 			when 'add-attribute'
-	# 				values[claim.attribute] ||= []
-	# 				values[claim.attribute] << claim.value
-	# 			when 'del-attribute'
-	# 				values.delete(claim.attribute)
-	# 		end
-	# 	end
-	# 	values
-	# end
 end
 
 class Permanode < SchemaBlob
@@ -153,25 +136,18 @@ class Permanode < SchemaBlob
 	def valid?
 		super && blobhash['camliType'] == 'permanode'
 	end
-	def update attribute, value
-		Blobserver.update_permanode blobref, attribute, value
-	end
 	def claims
 		if @claims.nil?
-			@claims = Claim.find_by_permanode(blobref)
-			if @claims.nil?
-				@claims = []
-			end
+			@claims = Claim.find_by_permanode(blobref) || []
 		end
 		@claims
 	end
+	def set_attribute attribute, value
+		Blobserver.update_permanode blobref, attribute, value
+	end
 	def get_attribute attribute
-		if @values.nil?
-			@values = {}
-		end
-		if !@values[attribute].nil?
-			return @values[attribute]
-		end
+		@values = {} if @values.nil?
+		return @values[attribute] if @values[attribute]
 		claims.each do |claim|
 			if claim.attribute == attribute
 				case claim.type
@@ -185,98 +161,92 @@ class Permanode < SchemaBlob
 				end
 			end
 		end
-		if !@values[attribute].nil?
-			return @values[attribute]
-		else
-			return nil
-		end
+		@values[attribute]
 	end
 end
 
 class Node < Permanode
-	def current
-		NodeRevision.new(self, 100)
-	end
-	def revision version
-		NodeRevision.new(self, version)
-	end
-	def revisions
-		r = []
-		claims.each_with_index do |claim, index|
-			r << NodeRevision.new(self, index)
-		end
-		r
-	end
+	# def current
+	# 	NodeRevision.new(self, 100)
+	# end
+	# def revision version
+	# 	NodeRevision.new(self, version)
+	# end
+	# def revisions
+	# 	r = []
+	# 	claims.each_with_index do |claim, index|
+	# 		r << NodeRevision.new(self, index)
+	# 	end
+	# 	r
+	# end
 	def set_title title
-		update 'title', title
+		set_attribute 'title', title
 	end
 	def set_content content
 		blobcontent = content.to_json
 		blobref = Blobserver.put(blobcontent)
-		update 'camliContent', blobref
+		set_attribute 'camliContent', blobref
 	end
 	def time
-		current.time
-	end
-	def title
-		current.title
-	end
-	def body
-		current.body
-	end
-end
-
-class Content < SchemaBlob
-	def title
-		blobhash['title'] || 'Blank'
-	end
-	def body
-		blobhash['body'] || 'Blank'
-	end
-end
-
-class NodeRevision
-	attr_accessor :node, :version
-	def initialize node, version
-		@node = node
-		@version = version
-	end
-	def claims
-	  if @claims.nil?
-			if @node.claims && @node.claims.length > 0
-				@claims = @node.claims.slice(0, @version + 1)
-			else
-				@claims = []
-			end
-		end
-		@claims
-	end
-	# def values
-		# @values = Claim.process_claims(claims) if @values.nil?
-	# end
-	def content
-		@content = Content.new(@node.get_attribute('camliContent')) if @content.nil?
-	end
-	def claim
-		claims.last
-	end
-	def date
-		if claims && claims.length > 0
-			claims.last.date
+		if claims.length > 0
+			claims.last.time
 		else
-			DateTime.new
+			Time.new
 		end
 	end
-	def time
-		date.to_time
-	end
 	def title
-		@node.blobref || content.title
+		get_attribute('title')
 	end
 	def body
-		content.body
+		content['body'] || content
+	end
+	def content
+		@content = SchemaBlob.new(camliContent).blobhash if @content.nil?
+	end
+	def camliContent
+		@camliContent = get_attribute('camliContent') if @camliContent.nil?
 	end
 end
+
+# class NodeRevision
+# 	attr_accessor :node, :version
+# 	def initialize node, version
+# 		@node = node
+# 		@version = version
+# 	end
+# 	def claims
+# 	  if @claims.nil?
+# 			if @node.claims && @node.claims.length > 0
+# 				@claims = @node.claims.slice(0, @version + 1)
+# 			else
+# 				@claims = []
+# 			end
+# 		end
+# 		@claims
+# 	end
+# 	def claim
+# 		claims.last
+# 	end
+# 	def date
+# 		if claims && claims.length > 0
+# 			claims.last.date
+# 		else
+# 			DateTime.new
+# 		end
+# 	end
+# 	def time
+# 		date.to_time
+# 	end
+# 	def title
+# 		@node.get_attribute('title')
+# 	end
+# 	def content
+# 		@content = Content.new(@node.get_attribute('camliContent')) if @content.nil?
+# 	end
+# 	def body
+# 		content.body
+# 	end
+# end
 
 
 #################
@@ -330,7 +300,12 @@ post '/node/:node_ref/edit' do
 	if @node.nil?
 		redirect '/error'
 	end
-	@node.set_content(params[:content])
+	if @node.title != params[:content]["title"]
+		@node.set_title(params[:content]["title"])
+	end
+	if @node.content != params[:content]
+		@node.set_content(params[:content])
+	end
 	redirect "/node/#{params[:node_ref]}"
 end
 
