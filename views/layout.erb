@@ -15,16 +15,14 @@
       <a href="/node/create">New</a>
       <% if @node %>
         <a href="/node/<%= @node.blobref %>/edit">Edit</a>
-        <a href="/node/<%= @node.blobref %>/revisions">Revisions</a>
-        <a href="/node/<%= @node.blobref %>/delete">Delete</a>
       <% end %>
     </div>
     <div id="main">
-    <h1><%= @title %></h1>
     <article><%= yield %></article>
     </div>
     <br /><br />
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script>window.jQuery || document.write('<script src="assets/js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
+    <script type="text/javascript" src="/assets/js/app.js"></script
   </body>
 </html>

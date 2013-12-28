@@ -1,4 +1,5 @@
-<pre><%= @dpm %></pre>
+<% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
+<h1><%= @title %></h1>
 <%	@nodes.each do |node| %>
 		<a href="/node/<%= node.blobref %>"><%= node.time.strftime("%b %d, %Y") %> - <%= node.title || node.blobref %></a><br />
 <% end %>
