@@ -3,10 +3,8 @@ require 'sinatra/form_helpers'
 require 'json'
 require 'digest/sha1'
 require 'camlistore'
-require 'rest_client'
 require 'open3'
 
-# http://stackoverflow.com/a/9361331/3015918
 module JSON
   def self.is_json?(foo)
     begin
@@ -24,10 +22,7 @@ class Blobserver
 		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
 	end
 	def Blobserver.get blobref
-		if blobref.nil?
-			return nil
-		end
-		puts blobref
+		return nil if blobref.nil?
 	  @@camli.get(blobref)
 	end
 	def Blobserver.enumerate
@@ -115,8 +110,8 @@ class Claim < SchemaBlob
 	def type() blobhash['claimType'] end
 	def attribute() blobhash['attribute'] end
 	def value()	blobhash['value'] end
-	def date() DateTime.parse(blobhash['claimDate']) end
-	def time() date.to_time end
+	def time() DateTime.parse(blobhash['claimDate']).to_time end
+	def time_formatted(format="%B %d, %Y %I:%M%p") time().strftime(format) end
 
 	def valid?
 		super && blobhash['camliType'] == 'claim'
@@ -166,19 +161,6 @@ class Permanode < SchemaBlob
 end
 
 class Node < Permanode
-	# def current
-	# 	NodeRevision.new(self, 100)
-	# end
-	# def revision version
-	# 	NodeRevision.new(self, version)
-	# end
-	# def revisions
-	# 	r = []
-	# 	claims.each_with_index do |claim, index|
-	# 		r << NodeRevision.new(self, index)
-	# 	end
-	# 	r
-	# end
 	def set_title title
 		set_attribute 'title', title
 	end
@@ -194,6 +176,9 @@ class Node < Permanode
 			Time.new
 		end
 	end
+	def time_formatted format="%B %d, %Y %I:%M%p"
+		time.strftime(format)
+	end
 	def title
 		get_attribute('title')
 	end
@@ -207,46 +192,6 @@ class Node < Permanode
 		@camliContent = get_attribute('camliContent') if @camliContent.nil?
 	end
 end
-
-# class NodeRevision
-# 	attr_accessor :node, :version
-# 	def initialize node, version
-# 		@node = node
-# 		@version = version
-# 	end
-# 	def claims
-# 	  if @claims.nil?
-# 			if @node.claims && @node.claims.length > 0
-# 				@claims = @node.claims.slice(0, @version + 1)
-# 			else
-# 				@claims = []
-# 			end
-# 		end
-# 		@claims
-# 	end
-# 	def claim
-# 		claims.last
-# 	end
-# 	def date
-# 		if claims && claims.length > 0
-# 			claims.last.date
-# 		else
-# 			DateTime.new
-# 		end
-# 	end
-# 	def time
-# 		date.to_time
-# 	end
-# 	def title
-# 		@node.get_attribute('title')
-# 	end
-# 	def content
-# 		@content = Content.new(@node.get_attribute('camliContent')) if @content.nil?
-# 	end
-# 	def body
-# 		content.body
-# 	end
-# end
 
 
 #################
@@ -277,14 +222,15 @@ get '/node/:node_ref' do
 	erb :node
 end
 
-get '/node/:node_ref/revisions' do
-	@node = Node.get(params[:node_ref])
-	if @node.nil?
+get '/b/:blob_ref' do
+	@blob = Blob.get(params[:blob_ref])
+	if @blob.nil?
 		redirect '/error'
 	end
-	@title = 'Revisions for ' + @node.title || @node.blobref
-	erb :node_revisions
+	@title = @blob.blobref
+	erb :blob
 end
+
 
 get '/node/:node_ref/edit' do
 	@node = Node.get(params[:node_ref])
@@ -309,13 +255,6 @@ post '/node/:node_ref/edit' do
 	redirect "/node/#{params[:node_ref]}"
 end
 
-get '/node/:node_ref/:num' do
-	@node = Node.get(params[:node_ref])
-	@revision = @node.revision(params[:num].to_i)
-	@title = @revision.title
-	erb :node_revision
-end
-
 get '/chronicle' do
 	@title = 'Timeline'
 	@blobs = Claim.enumerate
@@ -333,13 +272,6 @@ get '/' do
 	erb :index
 end
 
-
-get '/permanode' do
-	redirect '/'
-end
-get '/node' do
-	redirect '/'
-end
 
 #################
 # @end Routes   #

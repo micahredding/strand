@@ -13,5 +13,5 @@
 
 		title = blob.blobhash['attribute'].capitalize + ' ' + action + ' ' + blob.blobhash['value']
 	%>
-	<%= blob.blobhash['claimDate'] %> <a href="/b/<%= blob.blobref %>"><%= title %></a><br />
+	<%= blob.time_formatted %> <a href="/b/<%= blob.blobref %>"><%= title %></a><br />
 <% end %>
