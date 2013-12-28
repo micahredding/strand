@@ -110,8 +110,8 @@ class Claim < SchemaBlob
 	def type() blobhash['claimType'] end
 	def attribute() blobhash['attribute'] end
 	def value()	blobhash['value'] end
-	def date() DateTime.parse(blobhash['claimDate']) end
-	def time() date.to_time end
+	def time() DateTime.parse(blobhash['claimDate']).to_time end
+	def time_formatted(format="%B %d, %Y %I:%M%p") time().strftime(format) end
 
 	def valid?
 		super && blobhash['camliType'] == 'claim'
@@ -176,6 +176,9 @@ class Node < Permanode
 			Time.new
 		end
 	end
+	def time_formatted format="%B %d, %Y %I:%M%p"
+		time.strftime(format)
+	end
 	def title
 		get_attribute('title')
 	end
@@ -218,6 +221,16 @@ get '/node/:node_ref' do
 	@title = @node.title || @node.blobref
 	erb :node
 end
+
+get '/b/:blob_ref' do
+	@blob = Blob.get(params[:blob_ref])
+	if @blob.nil?
+		redirect '/error'
+	end
+	@title = @blob.blobref
+	erb :blob
+end
+
 
 get '/node/:node_ref/edit' do
 	@node = Node.get(params[:node_ref])
