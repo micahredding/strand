@@ -5,7 +5,6 @@ require 'digest/sha1'
 require 'camlistore'
 require 'open3'
 
-# http://stackoverflow.com/a/9361331/3015918
 module JSON
   def self.is_json?(foo)
     begin
