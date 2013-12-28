@@ -5,6 +5,9 @@ require 'digest/sha1'
 require 'camlistore'
 require 'open3'
 require 'rest_client'
+require 'net/http'
+require 'faraday'
+require 'faraday_middleware'
 
 module JSON
   def self.is_json?(foo)
@@ -19,6 +22,9 @@ end
 
 class Blobserver
 	@@camli = Camlistore.new
+	@@connection = Faraday.new
+	@@root_url = 'http://localhost:3179'
+
 	def Blobserver.blobref blobcontent
 		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
 	end
@@ -50,6 +56,55 @@ class Blobserver
 		end
 		output
 	end
+
+	def Blobserver.get_initial_config
+		response = @@connection.get @@root_url, {}, :accept => 'text/x-camli-configuration'
+		if response.status == 200
+			if JSON.is_json?(response.body)
+				info = JSON.parse(response.body)
+				@@search_root = info['searchRoot']
+			end
+		end
+	end
+
+	def Blobserver.search query
+		query = query.to_json if query.is_a?(Hash)
+		results = []
+		url = @@root_url + @@search_root + 'camli/search/query'
+		response = @@connection.post url, query
+		if response.status == 200
+			if JSON.is_json?(response.body)
+				results = JSON.parse(response.body)["blobs"]
+			end
+		end
+		results
+	end
+
+	def Blobserver.enumerate_type type="permanode"
+		Blobserver.search({"constraint" => {"camliType" => type}})
+	end
+
+	# def Blobserver.search
+	# 	blobref = Blobserver.blobref(blobcontent)
+	# 	boundary = 'randomboundaryXYZ'
+	# 	content_type = "multipart/form-data; boundary=randomboundaryXYZ"
+	# 	host = "localhost:3179"
+	# 	upload_url = 'http://localhost:3179/bs/camli/upload'
+
+	# 	post_body = ''
+	# 	post_body << "--" + boundary + "\n"
+	# 	post_body << 'Content-Disposition: form-data; name="' + blobref + '"; filename="' + blobref + '"' + "\n"
+	# 	post_body << 'Content-Type: application/octet-stream' + "\n\n"
+	# 	post_body << blobcontent
+	# 	post_body << "\n" + '--' + boundary + '--'
+
+	# 	response = RestClient.post upload_url, post_body, :content_type => content_type, :host => host
+	# 	if JSON.parse(response)['received'][0]['blobRef']
+	# 		blobref
+	# 	else
+	# 		nil
+	# 	end
+	# end
 end
 
 class Blob
@@ -268,6 +323,8 @@ get '/error' do
 end
 
 get '/' do
+	Blobserver.get_initial_config
+	puts Blobserver.enumerate_type "claim"
 	@title = 'All Entries'
 	@nodes = Node.enumerate
 	erb :index
