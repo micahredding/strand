@@ -24,16 +24,26 @@ class Blobserver
 		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
 	end
 	def Blobserver.get blobref
+		if blobref.nil?
+			return nil
+		end
+		puts blobref
 	  @@camli.get(blobref)
 	end
 	def Blobserver.enumerate
 		@@camli.enumerate_blobs.blobs
 	end
 	def Blobserver.create_permanode
-		system './camput permanode'
+		`./camput permanode`
 	end
+	# def Blobserver.create_share blobref
+	# 	system "./camput share --transitive '#{blobref}'"
+	# end
 	def Blobserver.update_permanode blobref, attribute, value
-		system "./camput attr #{blobref} #{attribute} '#{value}'"
+		blobref.delete!("\n")
+		attribute.delete!("\n")
+		value.delete!("\n")
+		`./camput attr #{blobref} #{attribute} #{value}`
 	end
 	def Blobserver.put blobcontent
 		output = nil
@@ -50,14 +60,21 @@ class Blobserver
 end
 
 class Blob
-	attr_accessor :blobref, :blobcontent
-	def initialize blobref, blobcontent
+	def initialize blobref, blobcontent=nil
 		@blobref = blobref
 		@blobcontent = blobcontent
 	end
+	def blobref
+		@blobref
+	end
+	def blobcontent
+		if @blobcontent.nil?
+			@blobcontent = Blobserver.get(blobref)
+		end
+		@blobcontent
+	end
 	def self.get blobref
-		blobcontent = Blobserver.get(blobref)
-		self.new(blobref, blobcontent)
+		self.new(blobref, Blobserver.get(blobref))
 	end
 	def self.put blobcontent
 		self.new(Blobserver.put(blobcontent), blobcontent)
@@ -65,7 +82,7 @@ class Blob
 	def self.enumerate
 		blobs = []
 		Blobserver.enumerate.each do |blob|
-			blobs << self.get(blob['blobRef'])
+			blobs << self.new(blob['blobRef'])
 		end
 		blobs
 	end
@@ -73,78 +90,112 @@ end
 
 class SchemaBlob < Blob
 	def blobhash
-		@blobhashinternal ||= JSON.parse(@blobcontent)
+		if @blobhash.nil?
+			if JSON.is_json?(blobcontent)
+				@blobhash = JSON.parse(blobcontent)
+			else
+				@blobhash = {}
+			end
+		end
+		@blobhash
 	end
 	def valid?
-		JSON.is_json?(@blobcontent)
+		JSON.is_json?(blobcontent)
 	end
 	def self.enumerate
-		blobs = super
-		blobs = blobs.select do |blob|
+		super.select do |blob|
 			blob.valid?
 		end
-		blobs.sort_by! { |blob| blob.blobhash["claimDate"] }
 	end
 	def self.find_by field, value
-		blobs = self.enumerate
-		blobs.select do |blob|
+		self.enumerate.select do |blob|
 			blob.blobhash[field] == value
 		end
 	end
 end
 
 class Claim < SchemaBlob
-	def Claim.find_by_permanode permanode_ref
-		self.find_by('permaNode', permanode_ref)
-	end
+	def type() blobhash['claimType'] end
+	def attribute() blobhash['attribute'] end
+	def value()	blobhash['value'] end
+	def date() DateTime.parse(blobhash['claimDate']) end
+
 	def valid?
 		super && blobhash['camliType'] == 'claim'
 	end
-	def type
-		blobhash['claimType']
+	def self.enumerate
+		super.sort_by! { |blob| blob.blobhash["claimDate"] }
 	end
-	def attribute
-		blobhash['attribute']
+	def self.find_by_permanode permanode_ref
+		self.find_by('permaNode', permanode_ref)
 	end
-	def value
-		blobhash['value']
-	end
-	def Claim.process_claims claims
-		values = {}
-		claims.each do |claim|
-			case claim.type
-				when 'set-attribute'
-					values[claim.attribute] = claim.value
-				when 'add-attribute'
-					values[claim.attribute] ||= []
-					values[claim.attribute] << claim.value
-				when 'del-attribute'
-					values.delete(claim.attribute)
-			end
-		end
-		values
-	end
+	# def self.process_claims claims
+	# 	values = {}
+	# 	claims.each do |claim|
+	# 		case claim.type
+	# 			when 'set-attribute'
+	# 				values[claim.attribute] = claim.value
+	# 			when 'add-attribute'
+	# 				values[claim.attribute] ||= []
+	# 				values[claim.attribute] << claim.value
+	# 			when 'del-attribute'
+	# 				values.delete(claim.attribute)
+	# 		end
+	# 	end
+	# 	values
+	# end
 end
 
 class Permanode < SchemaBlob
+	def self.create
+		self.new(Blobserver.create_permanode)
+	end
 	def valid?
 		super && blobhash['camliType'] == 'permanode'
 	end
-	def self.create
-		blobref = Blobserver.create_permanode
-		self.new(blobref, self.get(blobref))
-	end
 	def update attribute, value
-		Blobserver.update_permanode @blobref, attribute, value
+		Blobserver.update_permanode blobref, attribute, value
 	end
 	def claims
-		Claim.find_by_permanode(@blobref)
+		if @claims.nil?
+			@claims = Claim.find_by_permanode(blobref)
+			if @claims.nil?
+				@claims = []
+			end
+		end
+		@claims
+	end
+	def get_attribute attribute
+		if @values.nil?
+			@values = {}
+		end
+		if !@values[attribute].nil?
+			return @values[attribute]
+		end
+		claims.each do |claim|
+			if claim.attribute == attribute
+				case claim.type
+					when 'set-attribute'
+						@values[attribute] = claim.value
+					when 'add-attribute'
+						@values[attribute] ||= []
+						@values[attribute] << claim.value
+					when 'del-attribute'
+						@values.delete(attribute)
+				end
+			end
+		end
+		if !@values[attribute].nil?
+			return @values[attribute]
+		else
+			return nil
+		end
 	end
 end
 
 class Node < Permanode
 	def current
-		NodeRevision.new(self, claims.length - 1)
+		NodeRevision.new(self, 100)
 	end
 	def revision version
 		NodeRevision.new(self, version)
@@ -160,8 +211,12 @@ class Node < Permanode
 		update 'title', title
 	end
 	def set_content content
-		blob = Blob.put(content.to_json)
-		update 'camliContent', blob.blobref
+		blobcontent = content.to_json
+		blobref = Blobserver.put(blobcontent)
+		update 'camliContent', blobref
+	end
+	def time
+		current.time
 	end
 	def title
 		current.title
@@ -171,46 +226,77 @@ class Node < Permanode
 	end
 end
 
+class Content < SchemaBlob
+	def title
+		blobhash['title'] || 'Blank'
+	end
+	def body
+		blobhash['body'] || 'Blank'
+	end
+end
+
 class NodeRevision
-	attr_accessor :node, :version, :claims, :values
+	attr_accessor :node, :version
 	def initialize node, version
-		@content = {}
 		@node = node
 		@version = version
-		@claims = @node.claims.slice(0, @version + 1)
-		@values = Claim.process_claims(@claims)
 	end
-	def get_content
-		if @values['camliContent']
-			blob = SchemaBlob.get(@values['camliContent'])
-			if blob.valid?
-				return blob.blobhash
+	def claims
+	  if @claims.nil?
+			if @node.claims && @node.claims.length > 0
+				@claims = @node.claims.slice(0, @version + 1)
 			else
-				return blob.blobcontent
-		  end
+				@claims = []
+			end
 		end
-		{}
+		@claims
 	end
+	# def values
+		# @values = Claim.process_claims(claims) if @values.nil?
+	# end
 	def content
-		@contentinternal ||= get_content
+		@content = Content.new(@node.get_attribute('camliContent')) if @content.nil?
 	end
 	def claim
 		claims.last
 	end
+	def date
+		if claims && claims.length > 0
+			claims.last.date
+		else
+			DateTime.new
+		end
+	end
+	def time
+		date.to_time
+	end
 	def title
-		content['title'] || content['name'] || @values['title'] || @values['name'] || @node.blobref
+		@node.blobref || content.title
 	end
 	def body
-		content['body'] || @values['body'] || content
+		content.body
 	end
 end
 
 
-# get '/node/create' do
-# 	@title = 'Node'
-# 	@node = Node.create
-# 	redirect "/node/#{@node.blobref}"
-# end
+#################
+# @begin Routes #
+#################
+
+get '/node/create' do
+	@title = 'Create New Entry'
+	erb :form
+end
+
+post '/node/create' do
+	@node = Node.create
+	if @node
+		@node.set_content(params[:content])
+		redirect "/node/#{@node.blobref}"
+	else
+		redirect "/error"
+	end
+end
 
 get '/node/:node_ref' do
 	@node = Node.get(params[:node_ref])
@@ -255,12 +341,6 @@ get '/node/:node_ref/:num' do
 	erb :node_revision
 end
 
-get '/node' do
-	@title = 'All Nodes'
-	@nodes = Node.enumerate
-	erb :index
-end
-
 get '/chronicle' do
 	@title = 'Timeline'
 	@blobs = Claim.enumerate
@@ -273,5 +353,19 @@ get '/error' do
 end
 
 get '/' do
-	redirect '/node'
+	@title = 'All Entries'
+	@nodes = Node.enumerate
+	erb :index
 end
+
+
+get '/permanode' do
+	redirect '/'
+end
+get '/node' do
+	redirect '/'
+end
+
+#################
+# @end Routes   #
+#################

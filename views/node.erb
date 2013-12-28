@@ -1,2 +1,3 @@
-<pre><%= @dpm || '' %></pre>
+<% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
+<p class="date"><em><%= @node.time.strftime("%B %d, %Y %I:%M%p") %></em></p>
 <%= @node.body %>
