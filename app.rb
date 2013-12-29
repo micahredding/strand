@@ -235,8 +235,32 @@ class Node < Permanode
 		get_modtime
 	end
 
+	def revision time
+		NodeRevision.new(self, time)
+	end
+
+	def current
+		NodeRevision.new(self, 0)
+	end
+
 	def title
-		get_attribute('title')
+		current.title
+	end
+
+	def content
+		current.content
+	end
+
+end
+
+class NodeRevision
+	def initialize node, time
+		@node = node
+		@time = time
+	end
+
+	def title
+		@node.get_attribute('title')
 	end
 
 	def content
@@ -249,6 +273,7 @@ class Node < Permanode
 		end
 		@content
 	end
+
 end
 
 
