@@ -48,23 +48,7 @@ class Blobserver
 	end
 
 	def Blobserver.get blobref
-		return nil if blobref.nil?
 	  @@camli.get(blobref)
-	end
-
-	def Blobserver.enumerate
-		@@camli.enumerate_blobs.blobs
-	end
-
-	def Blobserver.create_permanode
-		`./camput permanode`
-	end
-
-	def Blobserver.update_permanode blobref, attribute, value
-		blobref.delete!("\n")
-		attribute.delete!("\n")
-		value.delete!("\n")
-		`./camput attr #{blobref} #{attribute} '#{value}'`
 	end
 
 	def Blobserver.put blobcontent
@@ -82,20 +66,46 @@ class Blobserver
 
 	def Blobserver.describe blobref
 	  url = @@root_url + @@search_root + 'camli/search/describe'
-	  results = Blobserver.http_get(url, {'blobref' => blobref})
-	  if results.nil? || results['meta'].nil? || results['meta'][blobref].nil? then return {} end
-	  results['meta'][blobref]
+		response = Faraday.get url, {'blobref' => blobref}
+		if response.status == 200
+			if JSON.is_json?(response.body)
+				results = JSON.parse(response.body)
+				if !results.nil? && !results['meta'].nil? && !results['meta'][blobref].nil?
+					return results['meta'][blobref]
+				end
+			end
+		end
+		{}
 	end
 
 	def Blobserver.search query
+		query = query.to_json if query.is_a?(Hash)
 		url = @@root_url + @@search_root + 'camli/search/query'
-		results = Blobserver.http_post(url, query)
-	  if results.nil? || results['blobs'].nil? then return [] end
-	  results['blobs']
+		response = Faraday.post url, query
+		if response.status == 200
+			if JSON.is_json?(response.body)
+				results = JSON.parse(response.body)
+				if !results.nil? && !results['blobs'].nil?
+					return results['blobs']
+				end
+			end
+		end
+		[]
 	end
 
-	def Blobserver.enumerate_type type
-		Blobserver.search({"constraint" => {"camliType" => type}})
+	def Blobserver.create_permanode
+		`./camput permanode`
+	end
+
+	def Blobserver.update_permanode blobref, attribute, value
+		blobref.delete!("\n")
+		attribute.delete!("\n")
+		value.delete!("\n")
+		`./camput attr #{blobref} #{attribute} '#{value}'`
+	end
+
+	def Blobserver.enumerate_permanodes
+		Blobserver.search({"constraint" => {"camliType" => 'permanode'}})
 	end
 
 	def Blobserver.find_permanode_by attribute, value
@@ -110,107 +120,9 @@ class Blobserver
 		})
 	end
 
-	# @begin http
-	def Blobserver.http_get url, parameters
-		response = Faraday.get url, parameters
-		if response.status == 200
-			if JSON.is_json?(response.body)
-				JSON.parse(response.body)
-			end
-		end
-	end
-
-	def Blobserver.http_post url, query
-		query = query.to_json if query.is_a?(Hash)
-		response = Faraday.post url, query
-		if response.status == 200
-			if JSON.is_json?(response.body)
-				JSON.parse(response.body)
-			end
-		end
-	end
-	# @end http
-
 	Blobserver.init
 end
 
-# class Blob
-	# @@camliType = nil
-	# def initialize blobref, blobcontent=nil
-	# 	@blobref = blobref
-	# 	@blobcontent = blobcontent
-	# end
-	# def blobref
-	# 	@blobref
-	# end
-	# def blobcontent
-	# 	if @blobcontent.nil?
-	# 		@blobcontent = Blobserver.get(blobref)
-	# 	end
-	# 	@blobcontent
-	# end
-	# def valid?
-	# 	true
-	# end
-	# def self.get blobref
-	# 	self.new(blobref, Blobserver.get(blobref))
-	# end
-	# def self.put blobcontent
-	# 	self.new(Blobserver.put(blobcontent), blobcontent)
-	# end
-	# def self.enumerate
-	# 	Blobserver.enumerate.collect! do |blob|
-	# 		self.new(blob['blobRef'])
-	# 	end
-	# end
-	# def self.enumerate_type
-	# 	Blobserver.enumerate_type(@@camliType).collect! do |blob|
-	# 		self.new(blob['blob'])
-	# 	end
-	# end
-# end
-
-# class SchemaBlob < Blob
-	# @@camliType = nil
-	# def blobhash
-	# 	if @blobhash.nil?
-	# 		if JSON.is_json?(blobcontent)
-	# 			@blobhash = JSON.parse(blobcontent)
-	# 		else
-	# 			@blobhash = {}
-	# 		end
-	# 	end
-	# 	@blobhash
-	# end
-	# def valid?
-	# 	JSON.is_json?(blobcontent)
-	# end
-	# def self.enumerate
-	# 	super.select do |blob|
-	# 		blob.valid?
-	# 	end
-	# end
-	# def self.find_by field, value
-	# 	self.enumerate.select do |blob|
-	# 		blob.blobhash[field] == value
-	# 	end
-	# end
-# end
-
-# class Claim < SchemaBlob
-# 	@@camliType = 'claim'
-# 	def type() blobhash['claimType'] end
-# 	def attribute() blobhash['attribute'] end
-# 	def value()	blobhash['value'] end
-# 	def time() DateTime.parse(blobhash['claimDate']).to_time end
-# 	def time_formatted(format="%B %d, %Y %I:%M%p") time().strftime(format) end
-# 	def valid?
-# 		super && blobhash['camliType'] == 'claim'
-# 	end
-# 	def self.find_by_permanode permanode_ref
-# 		self.find_by('permaNode', permanode_ref)
-# 	end
-# end
 
 class Permanode
 	def initialize blobref, blobcontent=nil
@@ -224,10 +136,33 @@ class Permanode
 
 	def blobcontent
 		@blobcontent = Blobserver.get(blobref) if @blobcontent.nil?
+		@blobcontent
 	end
 
 	def blobhash
-		@blobhash = JSON.parse(@blobcontent) if @blobhash.nil?
+		@blobhash = JSON.parse(blobcontent) if @blobhash.nil?
+		@blobhash
+	end
+
+	def description
+		@description = Blobserver.describe(@blobref) if @description.nil?
+		@description
+	end
+
+	def set_attribute attribute, value
+		Blobserver.update_permanode blobref, attribute, value
+	end
+
+	def get_attribute attribute
+		return nil if description.nil? || description['permanode'].nil? || description['permanode']['attr'].nil? || description['permanode']['attr'][attribute].nil? || description['permanode']['attr'][attribute].first.nil?
+		description['permanode']['attr'][attribute].first
+	end
+
+	def get_modtime
+		if description.nil? || description['permanode'].nil? || description['permanode']['modtime'].nil?
+			return Time.new
+		end
+		DateTime.parse(description['permanode']['modtime']).to_time
 	end
 
 	def self.create
@@ -238,39 +173,12 @@ class Permanode
 		self.new(blobref, Blobserver.get(blobref))
 	end
 
-	# def valid?
-	# 	super && blobhash['camliType'] == 'permanode'
-	# end
-	# def claims
-	# 	if @claims.nil?
-	# 		@claims = Claim.find_by_permanode(blobref) || []
-	# 	end
-	# 	@claims
-	# end
-	def set_attribute attribute, value
-		Blobserver.update_permanode blobref, attribute, value
-	end
-	def get_modtime
-		@description = Blobserver.describe(@blobref)
-		return nil if @description.nil? || @description['permanode'].nil? || @description['permanode']['modtime'].nil?
-		@description['permanode']['modtime']
-	end
-	def get_attribute attribute
-		@description = Blobserver.describe(@blobref)
-		return nil if @description.nil? || @description['permanode'].nil? || @description['permanode']['attr'].nil? || @description['permanode']['attr'][attribute].nil? || @description['permanode']['attr'][attribute].first.nil?
-		@description['permanode']['attr'][attribute].first
-	end
-
-	# def self.enumerate
-	# 	Blobserver.enumerate.collect! do |blob|
-	# 		self.new(blob['blobRef'])
-	# 	end
-	# end
-	def self.enumerate_type
-		Blobserver.enumerate_type('permanode').collect! do |blob|
+	def self.enumerate
+		Blobserver.enumerate_permanodes.collect! do |blob|
 			self.new(blob['blob'])
 		end
 	end
+
 end
 
 class Node < Permanode
@@ -278,27 +186,29 @@ class Node < Permanode
 		set_attribute 'title', title
 	end
 	def set_content content
-		blobcontent = content.to_json
-		blobref = Blobserver.put(blobcontent)
+		blobref = Blobserver.put(content.to_json)
 		set_attribute 'camliContent', blobref
 	end
+
 	def time
-		DateTime.parse(get_modtime).to_time
+		get_modtime
 	end
+
 	def time_formatted format="%B %d, %Y %I:%M%p"
 		time.strftime(format)
 	end
+
 	def title
 		get_attribute('title')
 	end
+
 	def body
-		content['body'] || content
+		content['body']
 	end
+
 	def content
-		@content = JSON.parse(Blobserver.get(camliContent)) if @content.nil?
-	end
-	def camliContent
-		@camliContent = get_attribute('camliContent') if @camliContent.nil?
+		@content = JSON.parse(Blobserver.get(get_attribute('camliContent'))) if @content.nil?
+		@content
 	end
 end
 
@@ -363,11 +273,11 @@ post '/node/:node_ref/edit' do
 	redirect "/node/#{params[:node_ref]}"
 end
 
-get '/chronicle' do
-	@title = 'Timeline'
-	@blobs = Claim.enumerate
-	erb :chronicle_index
-end
+# get '/chronicle' do
+# 	@title = 'Timeline'
+# 	@blobs = Claim.enumerate
+# 	erb :chronicle_index
+# end
 
 get '/error' do
 	@title = 'Error'
@@ -376,7 +286,7 @@ end
 
 get '/' do
 	@title = 'All Entries'
-	@nodes = Node.enumerate_type
+	@nodes = Node.enumerate
 	erb :index
 end
 
