@@ -24,6 +24,7 @@ class Blobserver
 	@@camli = Camlistore.new
 	@@connection = Faraday.new
 	@@root_url = 'http://localhost:3179'
+	@@host = 'localhost:3179'
 
 	# http://godoc.org/camlistore.org/pkg/search#SortType
   # UnspecifiedSort   = 0
@@ -64,7 +65,6 @@ class Blobserver
 		# output
 
 		blobref = Blobserver.blobref(blobcontent)
-    host = "localhost:3179"
     content_type = "multipart/form-data; boundary=randomboundaryXYZ"
     upload_url = @@root_url + @@blob_root + 'camli/upload'
     boundary = 'randomboundaryXYZ'
@@ -76,7 +76,7 @@ class Blobserver
     post_body << blobcontent
     post_body << "\n" + '--' + boundary + '--'
 
-		response = Faraday.post upload_url, post_body, :content_type => content_type, :host => host
+		response = Faraday.post upload_url, post_body, :content_type => content_type, :host => @@host
 		if response.status == 200
 			if JSON.is_json?(response.body)
 				results = JSON.parse(response.body)
