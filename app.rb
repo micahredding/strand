@@ -52,16 +52,39 @@ class Blobserver
 	end
 
 	def Blobserver.put blobcontent
-		output = nil
-		cmd = "./camput blob - "
-		Open3.popen3(cmd) do |stdin, stdout, stderr|
-			stdin.puts blobcontent
-			stdin.close
-			stdout.each_line do |line|
-				output = line
+		# output = nil
+		# cmd = "./camput blob - "
+		# Open3.popen3(cmd) do |stdin, stdout, stderr|
+		# 	stdin.puts blobcontent
+		# 	stdin.close
+		# 	stdout.each_line do |line|
+		# 		output = line
+		# 	end
+		# end
+		# output
+
+		blobref = Blobserver.blobref(blobcontent)
+    host = "localhost:3179"
+    content_type = "multipart/form-data; boundary=randomboundaryXYZ"
+    upload_url = @@root_url + @@blob_root + 'camli/upload'
+    boundary = 'randomboundaryXYZ'
+
+    post_body = ''
+    post_body << "--" + boundary + "\n"
+    post_body << 'Content-Disposition: form-data; name="' + blobref + '"; filename="' + blobref + '"' + "\n"
+    post_body << 'Content-Type: application/octet-stream' + "\n\n"
+    post_body << blobcontent
+    post_body << "\n" + '--' + boundary + '--'
+
+		response = Faraday.post upload_url, post_body, :content_type => content_type, :host => host
+		if response.status == 200
+			if JSON.is_json?(response.body)
+				results = JSON.parse(response.body)
+				if !results.nil? && !results['received'].nil?
+					blobref
+				end
 			end
 		end
-		output
 	end
 
 	def Blobserver.describe blobref

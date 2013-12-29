@@ -1,6 +1,6 @@
 <%
 title = @node && @node.title || ''
-body = @node && @node.body || ''
+body = @node && @node.content['body'] || ''
 %>
 <%= form(request.fullpath, :post) %>
 <%= input(:content, :title, :value => title) %>
