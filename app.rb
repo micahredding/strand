@@ -38,6 +38,7 @@ class Blobserver
 		if response.status == 200
 			if JSON.is_json?(response.body)
 				info = JSON.parse(response.body)
+				# puts info
 				@@search_root = info['searchRoot']
 				@@blob_root = info['blobRoot']
 			end
@@ -50,6 +51,11 @@ class Blobserver
 
 	def Blobserver.get blobref
 	  @@camli.get(blobref)
+	 #  get_url = @@root_url + @@blob_root + 'camli/' + blobref
+	 #  response = Faraday.get get_url
+		# if response.status == 200
+		# 	return response.body
+		# end
 	end
 
 	def Blobserver.put blobcontent
@@ -127,8 +133,8 @@ class Blobserver
 		`./camput attr #{blobref} #{attribute} '#{value}'`
 	end
 
-	def Blobserver.enumerate_permanodes
-		Blobserver.search({"constraint" => {"camliType" => 'permanode'}})
+	def Blobserver.enumerate_type type
+		Blobserver.search({"constraint" => {"camliType" => type}})
 	end
 
 	def Blobserver.find_permanode_by attribute, value
@@ -186,6 +192,20 @@ class Permanode
 		DateTime.parse(description['permanode']['modtime']).to_time
 	end
 
+	def get_claims
+		claims = Blobserver.enumerate_type('claim').collect! do |blob|
+			blobcontent = Blobserver.get(blob['blob'])
+			if JSON.is_json?(blobcontent)
+				JSON.parse(blobcontent)
+			else
+				{}
+			end
+		end
+		claims.select do |blob|
+			blob['permaNode'] == blobref
+		end
+	end
+
 	def self.create
 		self.new(Blobserver.create_permanode)
 	end
@@ -195,7 +215,7 @@ class Permanode
 	end
 
 	def self.enumerate
-		Blobserver.enumerate_permanodes.collect! do |blob|
+		Blobserver.enumerate_type('permanode').collect! do |blob|
 			self.new(blob['blob'])
 		end
 	end
@@ -220,7 +240,13 @@ class Node < Permanode
 	end
 
 	def content
-		@content = JSON.parse(Blobserver.get(get_attribute('camliContent'))) if @content.nil?
+		if @content.nil?
+			sha = get_attribute('camliContent')
+			@content = Blobserver.get(sha)
+			if JSON.is_json?(@content)
+				@content = JSON.parse(@content)
+			end
+		end
 		@content
 	end
 end

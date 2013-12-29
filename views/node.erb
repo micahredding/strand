@@ -6,3 +6,7 @@
 <div class="<%= fieldname %>"><%= fieldcontent %></div>
 <% end %>
 <% end %>
+<br /><br />
+<% @node.get_claims.each do |claim| %>
+	<%= claim['claimDate'] %><br />
+<% end %>
