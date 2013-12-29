@@ -1,4 +1,8 @@
 <% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
-<p class="date"><em><%= @node.time_formatted %></em></p>
+<p class="date"><em><%= @node.time.strftime("%B %d, %Y %I:%M%p") %></em></p>
 <h1><%= @title %></h1>
-<%= @node.body %>
+<% @node.content.each do |fieldname, fieldcontent| %>
+<% if fieldname != 'title' %>
+<div class="<%= fieldname %>"><%= fieldcontent %></div>
+<% end %>
+<% end %>

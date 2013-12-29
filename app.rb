@@ -26,11 +26,11 @@ class Blobserver
 	@@root_url = 'http://localhost:3179'
 
 	# http://godoc.org/camlistore.org/pkg/search#SortType
-  UnspecifiedSort   = 0
-  LastModifiedDesc  = 1
-  LastModifiedAsc   = 2
-  CreatedDesc       = 3
-  CreatedAsc        = 4
+  # UnspecifiedSort   = 0
+  # LastModifiedDesc  = 1
+  # LastModifiedAsc   = 2
+  # CreatedDesc       = 3
+  # CreatedAsc        = 4
 
 	def Blobserver.init
 		response = Faraday.get @@root_url, {}, :accept => 'text/x-camli-configuration'
@@ -159,9 +159,7 @@ class Permanode
 	end
 
 	def get_modtime
-		if description.nil? || description['permanode'].nil? || description['permanode']['modtime'].nil?
-			return Time.new
-		end
+		return Time.new if description.nil? || description['permanode'].nil? || description['permanode']['modtime'].nil?
 		DateTime.parse(description['permanode']['modtime']).to_time
 	end
 
@@ -194,16 +192,8 @@ class Node < Permanode
 		get_modtime
 	end
 
-	def time_formatted format="%B %d, %Y %I:%M%p"
-		time.strftime(format)
-	end
-
 	def title
 		get_attribute('title')
-	end
-
-	def body
-		content['body']
 	end
 
 	def content
@@ -225,6 +215,7 @@ end
 post '/node/create' do
 	@node = Node.create
 	if @node
+		@node.set_title(params[:content]["title"])
 		@node.set_content(params[:content])
 		redirect "/node/#{@node.blobref}"
 	else
@@ -242,11 +233,12 @@ get '/node/:node_ref' do
 end
 
 get '/b/:blob_ref' do
-	@blob = Blob.get(params[:blob_ref])
-	if @blob.nil?
+	@blobref = params[:blob_ref]
+	@blobcontent = Blobserver.get(@blobref)
+	if @blobcontent.nil?
 		redirect '/error'
 	end
-	@title = @blob.blobref
+	@title = @blobref
 	erb :blob
 end
 
@@ -255,7 +247,7 @@ get '/node/:node_ref/edit' do
 	if @node.nil?
 		redirect '/error'
 	end
-	@title = 'Edit Node'
+	@title = 'Edit Entry'
 	erb :form
 end
 
