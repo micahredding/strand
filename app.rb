@@ -94,6 +94,7 @@ class Blobserver
 	end
 
 	def Blobserver.describe blobref
+		# at = 2012-11-02T09:35:03-00:00
 	  url = @@root_url + @@search_root + 'camli/search/describe'
 		response = Faraday.get url, {'blobref' => blobref}
 		if response.status == 200
@@ -265,7 +266,7 @@ class NodeRevision
 
 	def content
 		if @content.nil?
-			sha = get_attribute('camliContent')
+			sha = @node.get_attribute('camliContent')
 			@content = Blobserver.get(sha)
 			if JSON.is_json?(@content)
 				@content = JSON.parse(@content)
