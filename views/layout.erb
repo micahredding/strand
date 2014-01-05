@@ -18,7 +18,8 @@
       <% end %>
     </div>
     <div id="main">
-    <article><%= yield %></article>
+    <% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
+    <%= yield %>
     </div>
     <br /><br />
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>

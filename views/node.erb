@@ -1,12 +1,9 @@
-<% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
-<p class="date"><em><%= @node.time.strftime("%B %d, %Y %I:%M%p") %></em></p>
+<article>
+<div class="date"><em><%= @node.time.strftime("%B %d, %Y %I:%M%p") %></em></div>
 <h1><%= @title %></h1>
 <% @node.current.content.each do |fieldname, fieldcontent| %>
 <% if fieldname != 'title' %>
 <div class="<%= fieldname %>"><%= fieldcontent %></div>
 <% end %>
 <% end %>
-<br /><br />
-<% @node.get_claims.each do |claim| %>
-	<%= claim['claimDate'] %><br />
-<% end %>
+</article>

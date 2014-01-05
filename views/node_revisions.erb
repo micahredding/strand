@@ -2,3 +2,7 @@
 <% @node.revisions.each_with_index do |revision, index| %>
 <a href="/node/<%= @node.blobref %>/<%= index %>"><%= index %> <%= revision.claim.blobhash['claimDate'] %></a><br />
 <% end %>
+
+<% @node.get_claims.each do |claim| %>
+	<a href="/node/<%= @node.blobref %>/<%= claim['claimDate'] %>"><%= claim['claimDate'] %></a><br />
+<% end %>

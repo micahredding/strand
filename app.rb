@@ -307,15 +307,15 @@ get '/node/:node_ref' do
 	erb :node
 end
 
-get '/b/:blob_ref' do
-	@blobref = params[:blob_ref]
-	@blobcontent = Blobserver.get(@blobref)
-	if @blobcontent.nil?
-		redirect '/error'
-	end
-	@title = @blobref
-	erb :blob
-end
+# get '/b/:blob_ref' do
+# 	@blobref = params[:blob_ref]
+# 	@blobcontent = Blobserver.get(@blobref)
+# 	if @blobcontent.nil?
+# 		redirect '/error'
+# 	end
+# 	@title = @blobref
+# 	erb :blob
+# end
 
 get '/node/:node_ref/edit' do
 	@node = Node.get(params[:node_ref])
@@ -340,6 +340,17 @@ post '/node/:node_ref/edit' do
 	redirect "/node/#{params[:node_ref]}"
 end
 
+# get '/node/:node_ref/:time' do
+# 	@node = Node.get(params[:node_ref])
+# 	if @node.nil?
+# 		redirect '/error'
+# 	end
+# 	@revision = @node.revision(params[:time])
+# 	@title = @revision.title || @node.blobref
+# 	erb :node_revision
+# end
+
+
 # get '/chronicle' do
 # 	@title = 'Timeline'
 # 	@blobs = Claim.enumerate
@@ -352,7 +363,7 @@ get '/error' do
 end
 
 get '/' do
-	@title = 'All Entries'
+	@title = 'My Strand'
 	@nodes = Node.enumerate
 	erb :index
 end

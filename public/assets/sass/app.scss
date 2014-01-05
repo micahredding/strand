@@ -29,11 +29,19 @@ body {
 	@include outer-container;
 	margin-top:4em;
 	margin-bottom:1em;
-	background: white;
 	h1 {
 		@include pad(default 0);
 	}
 	article {
 		@include pad;
+		background: white;
+		box-shadow: 1px 2px 1px rgba(10,10,10,0.2);
+		margin:2em 0;
+		h3 {
+			@include pad(default 0);
+		}
+		&:hover {
+			box-shadow: 1px 2px 10px rgba(10,10,10,0.2);
+		}
 	}
 }

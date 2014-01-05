@@ -1,5 +1,4 @@
-<% if @dpm %><pre><%= @dpm || '' %></pre><% end %>
 <h1><%= @title %></h1>
-<%	@nodes.each do |node| %>
-		<a href="/node/<%= node.blobref %>"><%= node.time.strftime("%b %d, %Y") %> - <%= node.title || node.blobref %></a><br />
+<% @nodes.each do |node| %>
+  <%= erb :_node_teaser, :locals => {:node => node} %>
 <% end %>
