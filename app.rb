@@ -363,7 +363,7 @@ get '/error' do
 end
 
 get '/' do
-	@title = 'My Strand'
+	@title = 'Micah Redding'
 	@nodes = Node.enumerate
 	erb :index
 end

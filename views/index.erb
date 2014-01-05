@@ -1,4 +1,4 @@
-<h1><%= @title %></h1>
+<h1 class="site-title"><%= @title %></h1>
 <% @nodes.each do |node| %>
   <%= erb :_node_teaser, :locals => {:node => node} %>
 <% end %>
