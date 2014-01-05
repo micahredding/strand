@@ -1,0 +1,9 @@
+<article>
+<div class="date"><em><%= node.time.strftime("%B %d, %Y %I:%M%p") %></em></div>
+<h3><a href="/node/<%= node.blobref %>"><%= node.title %></a></h3>
+<% node.current.content.each do |fieldname, fieldcontent| %>
+<% if fieldname != 'title' %>
+<div class="<%= fieldname %>"><%= fieldcontent %></div>
+<% end %>
+<% end %>
+</article>
