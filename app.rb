@@ -4,8 +4,6 @@ require 'json'
 require 'digest/sha1'
 require 'camlistore'
 require 'open3'
-require 'rest_client'
-require 'net/http'
 require 'faraday'
 require 'faraday_middleware'
 
