@@ -335,9 +335,9 @@ post '/node/:node_ref/edit' do
 	if @node.title != params[:content]["title"]
 		@node.set_title(params[:content]["title"])
 	end
-	if @node.content != params[:content]
-		@node.set_content(params[:content])
-	end
+	# if @node.content != params[:content]
+	# 	@node.set_content(params[:content])
+	# end
 	redirect "/node/#{params[:node_ref]}"
 end
 
