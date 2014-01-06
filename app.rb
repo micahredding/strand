@@ -265,9 +265,11 @@ class NodeRevision
 	def content
 		if @content.nil?
 			sha = @node.get_attribute('camliContent')
-			@content = Blobserver.get(sha)
-			if JSON.is_json?(@content)
-				@content = JSON.parse(@content)
+			if sha
+				@content = Blobserver.get(sha)
+				if JSON.is_json?(@content)
+					@content = JSON.parse(@content)
+				end
 			end
 		end
 		@content
