@@ -49,11 +49,6 @@ class Blobserver
 
 	def Blobserver.get blobref
 	  @@camli.get(blobref)
-	 #  get_url = @@root_url + @@blob_root + 'camli/' + blobref
-	 #  response = Faraday.get get_url
-		# if response.status == 200
-		# 	return response.body
-		# end
 	end
 
 	def Blobserver.put blobcontent
@@ -93,30 +88,18 @@ class Blobserver
 
 	def Blobserver.describe blobref
 		# at = 2012-11-02T09:35:03-00:00
-	  url = @@root_url + @@search_root + 'camli/search/describe'
-		response = Faraday.get url, {'blobref' => blobref}
-		if response.status == 200
-			if JSON.is_json?(response.body)
-				results = JSON.parse(response.body)
-				if !results.nil? && !results['meta'].nil? && !results['meta'][blobref].nil?
-					return results['meta'][blobref]
-				end
-			end
+		results = @@camli.describe blobref
+		if !results.nil? && !results['meta'].nil? && !results['meta'][blobref].nil?
+			return results['meta'][blobref]
 		end
 		{}
 	end
 
 	def Blobserver.search query
+		results = @@camli.search query
 		query = query.to_json if query.is_a?(Hash)
-		url = @@root_url + @@search_root + 'camli/search/query'
-		response = Faraday.post url, query
-		if response.status == 200
-			if JSON.is_json?(response.body)
-				results = JSON.parse(response.body)
-				if !results.nil? && !results['blobs'].nil?
-					return results['blobs']
-				end
-			end
+		if !results.nil? && !results['blobs'].nil?
+			return results['blobs']
 		end
 		[]
 	end
