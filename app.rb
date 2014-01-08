@@ -52,16 +52,12 @@ class Blobserver
 	end
 
 	def Blobserver.put blobcontent
-		# output = nil
-		# cmd = "./camput blob - "
-		# Open3.popen3(cmd) do |stdin, stdout, stderr|
-		# 	stdin.puts blobcontent
-		# 	stdin.close
-		# 	stdout.each_line do |line|
-		# 		output = line
-		# 	end
-		# end
-		# output
+# post_body = "--randomboundaryXYZ\n
+# Content-Disposition: form-data; name='#{blobref}'; filename='#{blobref}'\n
+# Content-Type: application/octet-stream\n\n
+
+# #{blobcontent}
+# \n--randomboundaryXYZ--"
 
 		blobref = Blobserver.blobref(blobcontent)
     content_type = "multipart/form-data; boundary=randomboundaryXYZ"
