@@ -287,16 +287,6 @@ get '/node/:node_ref' do
 	erb :node
 end
 
-# get '/b/:blob_ref' do
-# 	@blobref = params[:blob_ref]
-# 	@blobcontent = Blobserver.get(@blobref)
-# 	if @blobcontent.nil?
-# 		redirect '/error'
-# 	end
-# 	@title = @blobref
-# 	erb :blob
-# end
-
 get '/node/:node_ref/edit' do
 	@node = Node.get(params[:node_ref])
 	if @node.nil?
@@ -328,13 +318,6 @@ end
 # 	@revision = @node.revision(params[:time])
 # 	@title = @revision.title || @node.blobref
 # 	erb :node_revision
-# end
-
-
-# get '/chronicle' do
-# 	@title = 'Timeline'
-# 	@blobs = Claim.enumerate
-# 	erb :chronicle_index
 # end
 
 get '/error' do
