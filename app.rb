@@ -78,7 +78,7 @@ class Node < Permanode
 	end
 
 	def title
-		get_attribute('title')
+		@title ||= get_attribute('title')
 	end
 
 	def content
