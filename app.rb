@@ -20,7 +20,6 @@ end
 
 class Blobserver
 	@@camli = Camlistore.new
-	@@connection = Faraday.new
 	@@root_url = 'http://localhost:3179'
 	@@host = 'localhost:3179'
 
@@ -31,18 +30,6 @@ class Blobserver
   # CreatedDesc       = 3
   # CreatedAsc        = 4
 
-	def Blobserver.init
-		response = Faraday.get @@root_url, {}, :accept => 'text/x-camli-configuration'
-		if response.status == 200
-			if JSON.is_json?(response.body)
-				info = JSON.parse(response.body)
-				# puts info
-				@@search_root = info['searchRoot']
-				@@blob_root = info['blobRoot']
-			end
-		end
-	end
-
 	def Blobserver.blobref blobcontent
 		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
 	end
@@ -52,33 +39,9 @@ class Blobserver
 	end
 
 	def Blobserver.put blobcontent
-# post_body = "--randomboundaryXYZ\n
-# Content-Disposition: form-data; name='#{blobref}'; filename='#{blobref}'\n
-# Content-Type: application/octet-stream\n\n
-
-# #{blobcontent}
-# \n--randomboundaryXYZ--"
-
-		blobref = Blobserver.blobref(blobcontent)
-    content_type = "multipart/form-data; boundary=randomboundaryXYZ"
-    upload_url = @@root_url + @@blob_root + 'camli/upload'
-    boundary = 'randomboundaryXYZ'
-
-    post_body = ''
-    post_body << "--" + boundary + "\n"
-    post_body << 'Content-Disposition: form-data; name="' + blobref + '"; filename="' + blobref + '"' + "\n"
-    post_body << 'Content-Type: application/octet-stream' + "\n\n"
-    post_body << blobcontent
-    post_body << "\n" + '--' + boundary + '--'
-
-		response = Faraday.post upload_url, post_body, :content_type => content_type, :host => @@host
-		if response.status == 200
-			if JSON.is_json?(response.body)
-				results = JSON.parse(response.body)
-				if !results.nil? && !results['received'].nil?
-					blobref
-				end
-			end
+		results = @@camli.put(blobcontent)
+		if !results.nil? && !results.received.nil?
+			results.received.first.blobRef
 		end
 	end
 
@@ -127,7 +90,6 @@ class Blobserver
 		})
 	end
 
-	Blobserver.init
 end
 
 

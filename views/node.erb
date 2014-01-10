@@ -1,9 +1,11 @@
 <div class="date"><em><%= @node.time.strftime("%B %d, %Y %I:%M%p") %></em></div>
 <article>
 <h1 class="article-title"><%= @title %></h1>
-<% @node.current.content.each do |fieldname, fieldcontent| %>
-<% if fieldname != 'title' %>
-<div class="<%= fieldname %>"><%= fieldcontent %></div>
-<% end %>
+<% if @node.current.content && @node.current.content.is_a?(Hash) %>
+	<% @node.current.content.each do |fieldname, fieldcontent| %>
+		<% if fieldname != 'title' %>
+		<div class="<%= fieldname %>"><%= fieldcontent %></div>
+		<% end %>
+	<% end %>
 <% end %>
 </article>
