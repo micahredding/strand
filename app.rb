@@ -1,125 +1,32 @@
 require 'sinatra'
 require 'sinatra/form_helpers'
 require 'json'
-require 'digest/sha1'
-require 'camlistore'
-require 'open3'
-require 'faraday'
-require 'faraday_middleware'
-
-module JSON
-  def self.is_json?(foo)
-    begin
-      return false unless foo.is_a?(String)
-      JSON.parse(foo).all?
-    rescue JSON::ParserError
-      false
-    end
-  end
-end
-
-class Blobserver
-	@@camli = Camlistore.new
-	@@root_url = 'http://localhost:3179'
-	@@host = 'localhost:3179'
-
-	# http://godoc.org/camlistore.org/pkg/search#SortType
-  # UnspecifiedSort   = 0
-  # LastModifiedDesc  = 1
-  # LastModifiedAsc   = 2
-  # CreatedDesc       = 3
-  # CreatedAsc        = 4
-
-	def Blobserver.blobref blobcontent
-		'sha1-' + Digest::SHA1.hexdigest(blobcontent)
-	end
-
-	def Blobserver.get blobref
-	  @@camli.get(blobref)
-	end
-
-	def Blobserver.put blobcontent
-		results = @@camli.put(blobcontent)
-		if !results.nil? && !results.received.nil?
-			results.received.first.blobRef
-		end
-	end
-
-	def Blobserver.describe blobref
-		# at = 2012-11-02T09:35:03-00:00
-		results = @@camli.describe blobref
-		if !results.nil? && !results['meta'].nil? && !results['meta'][blobref].nil?
-			return results['meta'][blobref]
-		end
-		{}
-	end
-
-	def Blobserver.search query
-		results = @@camli.search query
-		query = query.to_json if query.is_a?(Hash)
-		if !results.nil? && !results['blobs'].nil?
-			return results['blobs']
-		end
-		[]
-	end
-
-	def Blobserver.create_permanode
-		`./camput permanode`
-	end
-
-	def Blobserver.update_permanode blobref, attribute, value
-		blobref.delete!("\n")
-		attribute.delete!("\n")
-		value.delete!("\n")
-		`./camput attr #{blobref} #{attribute} '#{value}'`
-	end
-
-	def Blobserver.enumerate_type type
-		Blobserver.search({"constraint" => {"camliType" => type}})
-	end
-
-	def Blobserver.find_permanode_by attribute, value
-		Blobserver.search({
-			"constraint" => {
-				"camliType" => "permanode",
-				"permanode" => {
-					"attr" => attribute,
-					"value" => value
-				}
-			}
-		})
-	end
-
-end
-
 
 class Permanode
+	@@blobserver = Strand.new
+
+	attr_reader :blobref
+
 	def initialize blobref, blobcontent=nil
 		@blobref = blobref
 		@blobcontent = blobcontent
-	end
-
-	def blobref
-		@blobref
+		@blobserver = Strand.new
 	end
 
 	def blobcontent
-		@blobcontent = Blobserver.get(blobref) if @blobcontent.nil?
-		@blobcontent
+		@blobcontent ||= @blobserver.get(blobref)
 	end
 
 	def blobhash
-		@blobhash = JSON.parse(blobcontent) if @blobhash.nil?
-		@blobhash
+		@blobhash ||= JSON.parse(blobcontent)
 	end
 
 	def description
-		@description = Blobserver.describe(@blobref) if @description.nil?
-		@description
+		@description ||= @blobserver.describe(@blobref)
 	end
 
 	def set_attribute attribute, value
-		Blobserver.update_permanode blobref, attribute, value
+		@blobserver.update_permanode blobref, attribute, value
 	end
 
 	def get_attribute attribute
@@ -133,13 +40,9 @@ class Permanode
 	end
 
 	def get_claims
-		claims = Blobserver.enumerate_type('claim').collect! do |blob|
-			blobcontent = Blobserver.get(blob['blob'])
-			if JSON.is_json?(blobcontent)
-				JSON.parse(blobcontent)
-			else
-				{}
-			end
+		claims = @blobserver.enumerate_type('claim').collect! do |blob|
+			blobcontent = @blobserver.get(blob['blob'])
+			JSON.parse(blobcontent)
 		end
 		claims.select do |blob|
 			blob['permaNode'] == blobref
@@ -147,74 +50,47 @@ class Permanode
 	end
 
 	def self.create
-		self.new(Blobserver.create_permanode)
+		self.new(@@blobserver.create_permanode)
 	end
 
 	def self.get blobref
-		self.new(blobref, Blobserver.get(blobref))
+		self.new(blobref, @@blobserver.get(blobref))
 	end
 
 	def self.enumerate
-		Blobserver.enumerate_type('permanode').collect! do |blob|
+		@@blobserver.enumerate_type('permanode').collect! do |blob|
 			self.new(blob['blob'])
 		end
 	end
-
 end
 
 class Node < Permanode
 	def set_title title
 		set_attribute 'title', title
 	end
+
 	def set_content content
-		blobref = Blobserver.put(content.to_json)
-		set_attribute 'camliContent', blobref
+		set_attribute 'camliContent', @blobserver.put(content.to_json)
 	end
 
 	def time
 		get_modtime
 	end
 
-	def revision time
-		NodeRevision.new(self, time)
-	end
-
-	def current
-		NodeRevision.new(self, 0)
-	end
-
 	def title
-		current.title
+		get_attribute('title')
 	end
 
 	def content
-		current.content
+		@content ||= camliContent || {}
 	end
 
-end
-
-class NodeRevision
-	def initialize node, time
-		@node = node
-		@time = time
-	end
-
-	def title
-		@node.get_attribute('title')
-	end
-
-	def content
-		if @content.nil?
-			@content = {}
-			sha = @node.get_attribute('camliContent')
-			if sha
-				@content = Blobserver.get(sha)
-				if JSON.is_json?(@content)
-					@content = JSON.parse(@content)
-				end
-			end
+	def camliContent
+		sha = get_attribute('camliContent')
+		if sha
+			content = @blobserver.get(sha)
+			JSON.parse(content) if JSON.is_json?(content)
 		end
-		@content
 	end
 
 end
@@ -272,23 +148,13 @@ post '/node/:node_ref/edit' do
 	redirect "/node/#{params[:node_ref]}"
 end
 
-# get '/node/:node_ref/:time' do
-# 	@node = Node.get(params[:node_ref])
-# 	if @node.nil?
-# 		redirect '/error'
-# 	end
-# 	@revision = @node.revision(params[:time])
-# 	@title = @revision.title || @node.blobref
-# 	erb :node_revision
-# end
-
 get '/error' do
 	@title = 'Error'
 	erb :error
 end
 
 get '/' do
-	@title = 'Micah Redding'
+	@title = 'All posts'
 	@nodes = Node.enumerate
 	erb :index
 end

@@ -1,8 +1,8 @@
 <article>
 <div class="date"><em><%= node.time.strftime("%b %d, %Y") %></em></div>
 <h3><a href="/node/<%= node.blobref %>"><%= node.title %></a></h3>
-<% if node.current.content && node.current.content.is_a?(Hash) %>
-	<% node.current.content.each do |fieldname, fieldcontent| %>
+<% if node.content && node.content.is_a?(Hash) %>
+	<% node.content.each do |fieldname, fieldcontent| %>
 		<% if fieldname != 'title' %>
 		<div class="<%= fieldname %>"><%= fieldcontent %></div>
 		<% end %>
